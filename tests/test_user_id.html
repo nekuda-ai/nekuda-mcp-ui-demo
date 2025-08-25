@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test User ID Generation</title>
+</head>
+<body>
+    <h1>User ID Generation Test</h1>
+    <p>Current User ID: <span id="user-id"></span></p>
+    <button onclick="regenerate()">Regenerate User ID</button>
+    <button onclick="clearSession()">Clear Session</button>
+    
+    <script>
+        const SESSION_KEY = 'nekuda_demo_user_id'
+        
+        function generateUserId() {
+            if (crypto && crypto.randomUUID) {
+                return `user_${crypto.randomUUID()}`
+            }
+            const timestamp = Date.now()
+            const random = Math.random().toString(36).substring(2, 8)
+            return `user_${timestamp}_${random}`
+        }
+        
+        function getUserId() {
+            let userId = sessionStorage.getItem(SESSION_KEY)
+            if (!userId) {
+                userId = generateUserId()
+                sessionStorage.setItem(SESSION_KEY, userId)
+                console.log('[Demo] Generated new user ID for session:', userId)
+            }
+            return userId
+        }
+        
+        function regenerate() {
+            const userId = generateUserId()
+            sessionStorage.setItem(SESSION_KEY, userId)
+            console.log('[Demo] Regenerated user ID:', userId)
+            document.getElementById('user-id').textContent = userId
+        }
+        
+        function clearSession() {
+            sessionStorage.removeItem(SESSION_KEY)
+            location.reload()
+        }
+        
+        // Display current user ID
+        document.getElementById('user-id').textContent = getUserId()
+        
+        console.log('Current session user ID:', getUserId())
+    </script>
+</body>
+</html>

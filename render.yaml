@@ -1,0 +1,49 @@
+services:
+  # MCP Server (Deploy first - other services depend on it)
+  - type: web
+    name: nekuda-mcp-server
+    env: python
+    plan: free
+    buildCommand: cd mcp-server && pip install -r requirements.txt
+    startCommand: cd mcp-server && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: MEDIA_SERVER_URL
+        value: https://nekuda-mcp-server.onrender.com
+
+  # Backend API (Deploy second - depends on MCP server)
+  - type: web
+    name: nekuda-backend-api
+    env: python
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: MCP_SERVER_URL
+        value: https://nekuda-mcp-server.onrender.com
+      - key: SESSION_SECRET_KEY
+        generateValue: true
+      - key: OPENAI_API_KEY
+        value: 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
+      - key: NEKUDA_API_KEY
+        value: ak_Cx1qQtv_iq31yGhIIB_jQzGfbx1DVD0lPkESw7jOgSw
+      - key: CORS_ORIGINS
+        value: https://nekuda-frontend.onrender.com
+      - key: MEDIA_SERVER_URL
+        value: https://nekuda-mcp-server.onrender.com
+
+  # Frontend (Deploy last - depends on backend)
+  - type: web
+    name: nekuda-frontend
+    env: node
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm run preview -- --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: VITE_NEKUDA_PUBLIC_KEY
+        value: ak_mCL7GZh_ou1m1LDaU7jQkXrc5ohbsuaU8gBlu4Rzk1A
+      - key: VITE_BACKEND_URL
+        value: https://nekuda-backend-api.onrender.com

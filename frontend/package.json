@@ -1,0 +1,37 @@
+{
+  "name": "mcp-ecommerce-frontend",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@mcp-ui/client": "^5.2.0",
+    "@nekuda/react-nekuda-js": "^0.0.18",
+    "@remote-dom/core": "^1.9.0",
+    "@remote-dom/react": "^1.2.2",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "@vueuse/core": "^10.7.0",
+    "axios": "^1.6.0",
+    "lucide-vue-next": "^0.294.0",
+    "pinia": "^2.1.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.9.0",
+    "@vitejs/plugin-vue": "^4.5.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.3.6",
+    "typescript": "^5.2.0",
+    "vite": "^5.0.0",
+    "vue-tsc": "^1.8.25"
+  }
+}

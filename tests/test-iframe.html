@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MCP-UI Component Test</title>
+    <style>
+        body { font-family: system-ui; margin: 20px; background: #1e1e1e; color: white; }
+        iframe { width: 100%; height: 520px; border: none; border-radius: 12px; }
+    </style>
+</head>
+<body>
+    <h1>MCP-UI Component Test</h1>
+    <p>Testing the ProductNavigator component with improved React loading and error handling:</p>
+    
+    <iframe id="testFrame" style="background: rgba(30,30,30,0.95);"></iframe>
+
+    <script>
+        // Create the iframe content with our improved approach
+        const componentScript = `
+// MCP-UI React Remote DOM Component
+const products = [{"id": "lebron-lakers-jersey", "name": "LeBron James Lakers Jersey #6", "description": "Official Los Angeles Lakers jersey worn by the King himself. Features premium stitching, authentic team colors, and the iconic #6. Perfect for showing your Lakers pride and basketball legacy.", "price": 149.99, "category": "nba-jerseys", "icon": "👑", "color": "#552583", "variant_id": "size-s", "image_filename": "lebron-lakers-home.jpg", "highlight_gif": "lebron-dunk.gif", "player_stats": "4x NBA Champion, 4x Finals MVP"}, {"id": "curry-warriors-jersey", "name": "Stephen Curry Warriors Jersey #30", "description": "Golden State Warriors jersey of the greatest shooter in NBA history. Features the iconic #30 and championship-winning team colors. Represent the 3-point revolution.", "price": 139.99, "category": "nba-jerseys", "icon": "🏹", "color": "#1D428A", "variant_id": "size-s", "image_filename": "curry-warriors-home.jpg", "highlight_gif": "curry-three-pointer.gif", "player_stats": "4x NBA Champion, 2x MVP"}];
+
+function ProductNavigator() {
+    const [currentIndex, setCurrentIndex] = React.useState(0);
+    const [product, setProduct] = React.useState(products[0]);
+
+    React.useEffect(() => {
+        setProduct(products[currentIndex]);
+    }, [currentIndex]);
+
+    const handleViewDetails = (productId) => {
+        console.log('View details:', productId);
+        window.parent.postMessage({
+            type: 'tool',
+            payload: { toolName: 'get_product_details', params: { product_id: productId } }
+        }, '*');
+    };
+
+    const handleAddToCart = (productId, variantId) => {
+        console.log('Add to cart:', productId, variantId);
+        window.parent.postMessage({
+            type: 'tool',
+            payload: { toolName: 'add_to_cart', params: { product_id: productId, variant_id: variantId, quantity: 1 } }
+        }, '*');
+    };
+
+    if (!product) return React.createElement('div', null, 'Loading...');
+
+    return React.createElement('div', {
+        style: {
+            width: '100%',
+            maxWidth: '420px',
+            background: 'rgba(60, 60, 65, 0.9)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(80, 80, 85, 0.6)',
+            borderRadius: '12px',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
+            padding: '32px',
+            margin: '10px auto',
+            color: '#ffffff',
+            fontFamily: 'system-ui',
+            overflow: 'hidden'
+        }
+    }, [
+        React.createElement('h3', { key: 'title', style: { textAlign: 'center', marginBottom: '20px' } }, product.name),
+        React.createElement('div', { key: 'icon', style: { fontSize: '3rem', textAlign: 'center', marginBottom: '16px' } }, product.icon),
+        React.createElement('div', { key: 'price', style: { fontSize: '1.2rem', textAlign: 'center', marginBottom: '20px', color: '#00D2FF' } }, '$' + product.price.toFixed(2)),
+        React.createElement('div', { key: 'buttons', style: { display: 'flex', gap: '12px' } }, [
+            React.createElement('button', {
+                key: 'details',
+                onClick: () => handleViewDetails(product.id),
+                style: { flex: 1, padding: '10px', background: 'rgba(80,80,85,0.8)', color: 'white', border: '1px solid rgba(100,100,105,0.8)', borderRadius: '8px', cursor: 'pointer' }
+            }, 'View Details'),
+            React.createElement('button', {
+                key: 'add',
+                onClick: () => handleAddToCart(product.id, product.variant_id),
+                style: { flex: 1, padding: '10px', background: 'linear-gradient(135deg, #00D2FF 0%, #3A7BD5 100%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }
+            }, 'Add to Cart')
+        ])
+    ]);
+}
+        `;
+
+        const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background: transparent; font-family: system-ui; height: 520px; overflow: hidden; }
+        * { box-sizing: border-box; }
+        #root { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; padding: 20px 0; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script>
+        // Wait for React libraries to load
+        function waitForReact() {
+            return new Promise((resolve, reject) => {
+                let attempts = 0;
+                const maxAttempts = 50;
+                
+                function checkReact() {
+                    attempts++;
+                    if (typeof React !== "undefined" && typeof ReactDOM !== "undefined") {
+                        console.log("✅ React libraries loaded successfully");
+                        resolve();
+                    } else if (attempts >= maxAttempts) {
+                        reject(new Error("React libraries failed to load after " + maxAttempts + " attempts"));
+                    } else {
+                        setTimeout(checkReact, 100);
+                    }
+                }
+                checkReact();
+            });
+        }
+        
+        waitForReact().then(() => {
+            try {
+                console.log("🔄 Starting component execution...");
+                
+                // Make React available globally
+                const { useState, useEffect, createElement } = React;
+                
+                // Set up root element for MCP-UI compliance
+                const root = document.getElementById("root");
+                if (!root) {
+                    throw new Error("Root element not found");
+                }
+                
+                console.log("🚀 Executing component script...");
+                // Execute the component function
+                ${componentScript}
+                
+                // Manual rendering if MCP component did not auto-render
+                setTimeout(() => {
+                    if (root && root.innerHTML === "") {
+                        console.log("🔧 Manually rendering component...");
+                        const componentElement = React.createElement(ProductNavigator);
+                        const reactRoot = ReactDOM.createRoot(root);
+                        reactRoot.render(componentElement);
+                    } else {
+                        console.log("✅ Component auto-rendered successfully");
+                    }
+                }, 100);
+                
+            } catch (error) {
+                console.error("❌ Error executing component:", error);
+                console.error("❌ Error stack:", error.stack);
+                document.getElementById("root").innerHTML = 
+                    "<div style='padding: 20px; color: red; text-align: center; font-family: system-ui;'>❌ Component Error: " + error.message + "<br/><small>Check console for details</small></div>";
+            }
+        }).catch(error => {
+            console.error("❌ Failed to load React libraries:", error);
+            document.getElementById("root").innerHTML = 
+                "<div style='padding: 20px; color: red; text-align: center; font-family: system-ui;'>❌ React libraries failed to load</div>";
+        });
+    </script>
+</body>
+</html>`;
+
+        // Set iframe content
+        document.getElementById('testFrame').srcdoc = htmlContent;
+        
+        // Listen for messages from iframe
+        window.addEventListener('message', (event) => {
+            console.log('📨 Received message from iframe:', event.data);
+            if (event.data.type === 'tool') {
+                alert('Tool call: ' + event.data.payload.toolName + ' with params: ' + JSON.stringify(event.data.payload.params));
+            }
+        });
+    </script>
+</body>
+</html>
