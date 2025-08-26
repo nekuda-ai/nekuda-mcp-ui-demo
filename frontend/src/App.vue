@@ -64,21 +64,6 @@
           </a>
         </div>
 
-        <!-- Mobile Cart Button (fixed position) -->
-        <button 
-          @click="cartStore.toggleCart()"
-          class="md:hidden fixed bottom-4 right-4 z-30 relative group bg-gradient-to-r from-[#00D2FF] to-[#3A7BD5] text-white p-4 rounded-full shadow-2xl transition-all duration-300 min-w-touch min-h-touch flex items-center justify-center hover:scale-110 active:scale-95"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5-6m0 0h15.5M7 13v6a1 1 0 001 1h7a1 1 0 001-1v-6M7 13H5.4" />
-          </svg>
-          <div 
-            v-if="cartStore.itemCount > 0"
-            class="absolute -top-2 -right-2 bg-[#FF5722] text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-semibold animate-pulse shadow-lg"
-          >
-            {{ cartStore.itemCount }}
-          </div>
-        </button>
 
         <!-- Mobile Menu Overlay -->
         <div 

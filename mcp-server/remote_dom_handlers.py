@@ -165,6 +165,18 @@ function ProductNavigator() {{
     React.useEffect(() => {{
         setProduct(products[currentIndex]);
     }}, [currentIndex]);
+    
+    // Preload images for smoother navigation (demo optimization)
+    React.useEffect(() => {{
+        products.forEach(product => {{
+            const img = new Image();
+            img.src = '{MEDIA_SERVER_URL}/media/' + product.image_filename;
+            if (product.highlight_gif) {{
+                const gif = new Image();
+                gif.src = '{MEDIA_SERVER_URL}/media/' + product.highlight_gif;
+            }}
+        }});
+    }}, []);
 
     const handleViewDetails = (productId) => {{
         // Use specific jersey tools for main NBA jerseys, or filtered products for others

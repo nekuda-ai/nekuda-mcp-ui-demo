@@ -69,7 +69,7 @@
 
         <!-- Cart Summary (when items exist) -->
         <div v-if="!cartStore.isEmpty" class="border-t border-[#1e1e20] p-4 sm:p-6 space-y-4">
-          <!-- Totals -->
+          
           <div class="space-y-3">
             <div class="flex justify-between text-sm text-white/60">
               <span>Subtotal ({{ cartStore.itemCount }} items)</span>
