@@ -144,6 +144,8 @@ onMounted(async () => {
   await cartStore.syncCart(chatStore.sessionId)
 })
 
+
+
 const updateQuantity = (itemId: string, quantity: number) => {
   cartStore.updateQuantity(itemId, quantity, chatStore.sessionId)
 }

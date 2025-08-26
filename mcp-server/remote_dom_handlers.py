@@ -552,7 +552,7 @@ function ProductNavigator() {{
                 }}
             }}, products.map((_, index) => 
                 React.createElement('div', {{
-                    key: index,
+                    key: `nav-dot-${{index}}`,
                     onClick: () => goToProduct(index),
                     style: {{
                         width: '8px',

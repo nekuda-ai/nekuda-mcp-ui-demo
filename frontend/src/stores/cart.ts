@@ -23,6 +23,17 @@ export const useCartStore = defineStore('cart', () => {
   // Optimistic state management
   const backupItems = ref<CartItem[]>([])
   const pendingOperations = ref<Set<string>>(new Set())
+  
+  // Simple debounced sync for demo
+  let syncTimeout: NodeJS.Timeout | null = null
+  const debouncedSync = (sessionId?: string) => {
+    if (syncTimeout) clearTimeout(syncTimeout)
+    syncTimeout = setTimeout(() => {
+      if (pendingOperations.value.size === 0) {
+        syncCart(sessionId)
+      }
+    }, 2000) // Sync every 2 seconds instead of after each operation
+  }
 
   // Computed
   const itemCount = computed(() => {
@@ -93,58 +104,57 @@ export const useCartStore = defineStore('cart', () => {
   const addItem = async (item: Omit<CartItem, 'id'>, sessionId?: string) => {
     const operationId = `add-${item.productId}-${item.variantId}-${Date.now()}`
     
-    return cartOperationsQueue.enqueue(async () => {
-      console.log(`🛒 Queue: Starting add item operation for ${item.productId}`)
-      
-      // Backup current state
-      const backup = [...items.value]
-      pendingOperations.value.add(operationId)
-      
-      try {
-        // Optimistic update - add item immediately to UI
-        const newItem: CartItem = {
-          id: `cart-${item.productId}-${item.variantId}`,
-          ...item,
-          icon: PRODUCT_META[item.productId]?.icon || '📦',
-          color: PRODUCT_META[item.productId]?.color || '#3b82f6'
-        }
-        
-        const existingIndex = items.value.findIndex(
-          i => i.productId === item.productId && i.variantId === item.variantId
-        )
-        
-        if (existingIndex >= 0) {
-          items.value[existingIndex].quantity += item.quantity
-        } else {
-          items.value.push(newItem)
-        }
-        
-        // Background server sync
-        await chatApi.mcpAction({
-          action_type: 'tool',
-          tool_name: 'add_to_cart',
-          params: {
-            product_id: item.productId,
-            variant_id: item.variantId,
-            quantity: item.quantity
-          },
-          session_id: sessionId
-        })
-        
-        console.log(`✅ Queue: Successfully added ${item.productId} to cart`)
-        return { status: 'success', item: newItem }
-        
-      } catch (e) {
-        console.error('Failed to add item via MCP', e)
-        // Rollback optimistic update
-        items.value = backup
-        throw e
-      } finally {
-        pendingOperations.value.delete(operationId)
-        // Always sync after operation completes
-        await syncCart(sessionId)
+    // Backup current state
+    backupItems.value = [...items.value]
+    pendingOperations.value.add(operationId)
+    
+    try {
+      // Optimistic update - add item immediately to UI
+      const newItem: CartItem = {
+        id: `cart-${item.productId}-${item.variantId}`,
+        ...item,
+        icon: PRODUCT_META[item.productId]?.icon || '📦',
+        color: PRODUCT_META[item.productId]?.color || '#3b82f6'
       }
-    }, operationId)
+      
+      const existingIndex = items.value.findIndex(
+        i => i.productId === item.productId && i.variantId === item.variantId
+      )
+      
+      if (existingIndex >= 0) {
+        items.value[existingIndex].quantity += item.quantity
+      } else {
+        items.value.push(newItem)
+      }
+      
+      // Background server sync (don't await - let it happen in background)
+      chatApi.mcpAction({
+        action_type: 'tool',
+        tool_name: 'add_to_cart',
+        params: {
+          product_id: item.productId,
+          variant_id: item.variantId,
+          quantity: item.quantity
+        },
+        session_id: sessionId
+      }).catch(e => {
+        console.warn('Background server sync failed, but UI remains responsive:', e)
+        // Don't rollback for demo - keep optimistic updates
+      })
+      
+      console.log(`✅ Added ${item.productId} to cart (demo mode)`)
+      return { status: 'success', item: newItem }
+      
+    } catch (e) {
+      console.error('Failed to add item', e)
+      // Rollback optimistic update
+      items.value = [...backupItems.value]
+      throw e
+    } finally {
+      pendingOperations.value.delete(operationId)
+      // Use debounced sync for demo
+      debouncedSync(sessionId)
+    }
   }
 
   const removeItem = async (itemId: string, sessionId?: string) => {
@@ -153,39 +163,32 @@ export const useCartStore = defineStore('cart', () => {
     
     const operationId = `remove-${item.productId}-${item.variantId}-${Date.now()}`
     
-    return cartOperationsQueue.enqueue(async () => {
-      console.log(`🛒 Queue: Starting remove item operation for ${item.productId}`)
+    // Backup current state
+    backupItems.value = [...items.value]
+    pendingOperations.value.add(operationId)
+    
+    try {
+      // Optimistic update - remove item immediately from UI
+      items.value = items.value.filter(i => i.id !== itemId)
       
-      // Backup current state
-      const backup = [...items.value]
-      pendingOperations.value.add(operationId)
+      // Background server sync (don't await)
+      chatApi.mcpAction({
+        action_type: 'tool',
+        tool_name: 'remove_from_cart',
+        params: { product_id: item.productId, variant_id: item.variantId },
+        session_id: sessionId
+      }).catch(e => {
+        console.warn('Background server sync failed, but UI remains responsive:', e)
+      })
       
-      try {
-        // Optimistic update - remove item immediately from UI
-        items.value = items.value.filter(i => i.id !== itemId)
-        
-        // Background server sync
-        await chatApi.mcpAction({
-          action_type: 'tool',
-          tool_name: 'remove_from_cart',
-          params: { product_id: item.productId, variant_id: item.variantId },
-          session_id: sessionId
-        })
-        
-        console.log(`✅ Queue: Successfully removed ${item.productId} from cart`)
-        return { status: 'success', removedItem: item }
-        
-      } catch (e) {
-        console.error('Failed to remove item via MCP', e)
-        // Rollback optimistic update
-        items.value = backup
-        throw e
-      } finally {
-        pendingOperations.value.delete(operationId)
-        // Always sync after operation completes
-        await syncCart(sessionId)
-      }
-    }, operationId)
+      console.log(`✅ Removed ${item.productId} from cart (demo mode)`)
+      return { status: 'success', removedItem: item }
+      
+    } finally {
+      pendingOperations.value.delete(operationId)
+      // Use debounced sync for demo
+      debouncedSync(sessionId)
+    }
   }
 
   const updateQuantity = async (itemId: string, quantity: number, sessionId?: string) => {
@@ -194,84 +197,71 @@ export const useCartStore = defineStore('cart', () => {
     
     const operationId = `update-${item.productId}-${item.variantId}-${Date.now()}`
     
-    return cartOperationsQueue.enqueue(async () => {
-      console.log(`🛒 Queue: Starting update quantity operation for ${item.productId} (${quantity})`)
-      
-      // Backup current state
-      const backup = [...items.value]
-      pendingOperations.value.add(operationId)
-      
-      try {
-        // Optimistic update - update quantity immediately in UI
-        if (quantity <= 0) {
-          items.value = items.value.filter(i => i.id !== itemId)
-        } else {
-          const currentItem = items.value.find(i => i.id === itemId)
-          if (currentItem) {
-            currentItem.quantity = quantity
-          }
+    // Backup current state
+    backupItems.value = [...items.value]
+    pendingOperations.value.add(operationId)
+    
+    try {
+      // Optimistic update - update quantity immediately in UI
+      if (quantity <= 0) {
+        items.value = items.value.filter(i => i.id !== itemId)
+      } else {
+        const currentItem = items.value.find(i => i.id === itemId)
+        if (currentItem) {
+          currentItem.quantity = quantity
         }
-        
-        // Background server sync
-        await chatApi.mcpAction({
-          action_type: 'tool',
-          tool_name: 'set_cart_quantity',
-          params: { product_id: item.productId, variant_id: item.variantId, quantity },
-          session_id: sessionId
-        })
-        
-        console.log(`✅ Queue: Successfully updated quantity for ${item.productId}`)
-        return { status: 'success', item, quantity }
-        
-      } catch (e) {
-        console.error('Failed to update quantity via MCP', e)
-        // Rollback optimistic update
-        items.value = backup
-        throw e
-      } finally {
-        pendingOperations.value.delete(operationId)
-        // Always sync after operation completes
-        await syncCart(sessionId)
       }
-    }, operationId)
+      
+      // Background server sync (don't await)
+      chatApi.mcpAction({
+        action_type: 'tool',
+        tool_name: 'set_cart_quantity',
+        params: { product_id: item.productId, variant_id: item.variantId, quantity },
+        session_id: sessionId
+      }).catch(e => {
+        console.warn('Background server sync failed, but UI remains responsive:', e)
+      })
+      
+      console.log(`✅ Updated quantity for ${item.productId} (demo mode)`)
+      return { status: 'success', item, quantity }
+      
+    } finally {
+      pendingOperations.value.delete(operationId)
+      // Use debounced sync for demo
+      debouncedSync(sessionId)
+    }
   }
 
   const clearCart = async (sessionId?: string) => {
     const operationId = `clear-${Date.now()}`
     
-    return cartOperationsQueue.enqueue(async () => {
-      console.log(`🛒 Queue: Starting clear cart operation`)
+    // Backup current state
+    const backup = [...items.value]
+    backupItems.value = backup
+    pendingOperations.value.add(operationId)
+    
+    try {
+      // Optimistic update - clear cart immediately in UI
+      items.value = []
       
-      // Backup current state
-      const backup = [...items.value]
-      pendingOperations.value.add(operationId)
+      // Background server sync (don't await)
+      chatApi.mcpAction({
+        action_type: 'tool',
+        tool_name: 'clear_cart',
+        params: {},
+        session_id: sessionId
+      }).catch(e => {
+        console.warn('Background server sync failed, but UI remains responsive:', e)
+      })
       
-      try {
-        // Optimistic update - clear cart immediately in UI
-        items.value = []
-        
-        // Background server sync
-        await chatApi.mcpAction({
-          action_type: 'tool',
-          tool_name: 'clear_cart',
-          params: {},
-          session_id: sessionId
-        })
-        
-        console.log(`✅ Queue: Successfully cleared cart`)
-        return { status: 'success', clearedItems: backup.length }
-        
-      } catch (e) {
-        console.error('Failed to clear cart via MCP', e)
-        // Rollback optimistic update
-        items.value = backup
-        throw e
-      } finally {
-        pendingOperations.value.delete(operationId)
-        // Always sync after operation completes
-        await syncCart(sessionId)
-      }
-    }, operationId)
+      console.log(`✅ Cleared cart (demo mode)`)
+      return { status: 'success', clearedItems: backup.length }
+      
+    } finally {
+      pendingOperations.value.delete(operationId)
+      // Use debounced sync for demo
+      debouncedSync(sessionId)
+    }
   }
 
   const toggleCart = () => {
