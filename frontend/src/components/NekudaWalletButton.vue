@@ -245,11 +245,29 @@ const NekudaWalletComponent = () => {
       React.createElement('p', {
         key: 'description',
         style: {
-          marginBottom: '20px',
+          marginBottom: '12px',
           color: 'rgba(255, 255, 255, 0.7)',
           fontSize: '14px'
         }
       }, 'Your payment information will be securely stored and tokenized.'),
+      
+      React.createElement('div', {
+        key: 'demo-warning',
+        style: {
+          marginBottom: '20px',
+          padding: '12px',
+          backgroundColor: 'rgba(255, 193, 7, 0.1)',
+          borderLeft: '3px solid #ffc107',
+          borderRadius: '4px'
+        }
+      }, React.createElement('p', {
+        style: {
+          margin: '0',
+          color: '#ffc107',
+          fontSize: '13px',
+          fontWeight: '500'
+        }
+      }, '⚠️ Demo only - Do not enter real payment details')),
       
       React.createElement(NekudaPaymentForm, {
         key: 'form',
