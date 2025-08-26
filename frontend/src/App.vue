@@ -15,7 +15,7 @@
             <img src="/dot_black.png" alt="nekuda logo" class="w-6 h-6 sm:w-7 sm:h-7 rounded-2xl shadow-lg" />
           </a>
           <h1 class="text-sm sm:text-lg font-medium text-white tracking-tight truncate">
-            <span class="hidden sm:inline">MCP-UI + nekuda wallet demo</span>
+            <span class="hidden sm:inline">Headless Store + nekuda Wallet Demo</span>
             <span class="sm:hidden">nekuda wallet</span>
           </h1>
         </div>
