@@ -87,14 +87,17 @@ let reactRoot: any = null
 const userId = getUserId() // Unique user ID per session
 const NEKUDA_PUBLIC_KEY = 'ak_mCL7GZh_ou1m1LDaU7jQkXrc5ohbsuaU8gBlu4Rzk1A'
 
-// React component following documentation exactly
+// React component using new simplified SDK with NekudaCardManagement only
 const NekudaWalletComponent = () => {
-  const [processing, setProcessing] = React.useState(false)
-  const [succeeded, setSucceeded] = React.useState(false)
-  const [errorState, setErrorState] = React.useState(null)
-  const [nekudaComponents, setNekudaComponents] = React.useState(null)
-  const [savedCards, setSavedCards] = React.useState([])
-  const [showCardManagement, setShowCardManagement] = React.useState(false)
+  const [nekudaComponents, setNekudaComponents] = React.useState<any>(null)
+  const [prefillData, setPrefillData] = React.useState({
+    email: '',
+    billing_address: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    phone_number: ''
+  })
 
   // Load Nekuda components dynamically
   React.useEffect(() => {
@@ -106,211 +109,324 @@ const NekudaWalletComponent = () => {
         console.log('[Nekuda] Components loaded successfully')
       } catch (err) {
         console.error('[Nekuda] Failed to load components:', err)
-        setErrorState('Failed to load Nekuda components')
       }
     }
     loadNekuda()
   }, [])
 
-  // Check for existing cards when components load
-  React.useEffect(() => {
-    if (nekudaComponents) {
-      checkForExistingCards()
-    }
-  }, [nekudaComponents])
+  // Called when user clicks "Add Card" button
+  const handleAddCardClick = () => {
+    console.log('[Nekuda] Add card clicked')
+    // Optionally update prefill data for the next card
+    setPrefillData({
+      ...prefillData,
+      // You can modify prefill data here if needed
+    })
+  }
 
-  const checkForExistingCards = async () => {
-    if (!nekudaComponents) return
-
-    try {
-      console.log('[Nekuda] Checking for existing cards for user:', userId)
-      const apiService = nekudaComponents.createWalletApiService({
-        customerId: 'demo-customer',
-        publicKey: NEKUDA_PUBLIC_KEY
+  // Called whenever the cards list changes (add, update, delete)
+  const handleCardsUpdated = (cards: any[]) => {
+    console.log('[Nekuda] Cards list updated:', cards)
+    console.log(`[Nekuda] Total cards: ${cards.length}`)
+    
+    // Update the button indicator
+    hasStoredCards.value = cards && cards.length > 0
+    
+    // Log each card's details
+    cards.forEach((card: any, index: number) => {
+      console.log(`[Nekuda] Card ${index + 1}:`, {
+        id: card.id,
+        brand: card.brand,
+        last4: card.last4,
+        expiry: card.expiry,
+        isDefault: card.isDefault
       })
-      
-      const cards = await apiService.getCardsForSdk(userId)
-      console.log('[Nekuda] Found cards:', cards)
-      
-      setSavedCards(cards)
-      const hasCards = cards && cards.length > 0
-      setShowCardManagement(hasCards)
-      hasStoredCards.value = hasCards
-      
-      console.log('[Nekuda] Card management mode:', hasCards ? 'Management' : 'Collection')
-    } catch (err) {
-      console.log('[Nekuda] No existing cards or error:', err)
-      setShowCardManagement(false)
-      hasStoredCards.value = false
-    }
-  }
-
-  // Handle successful payment form save (following docs pattern)
-  const handlePaymentSave = async (formData) => {
-    console.log('[Nekuda] Payment saved via coordinator:', formData)
-    
-    // Extract token ID from coordinator response (as per docs)
-    const tokenId = formData.id || formData.cardTokenId
-    
-    if (tokenId) {
-      setProcessing(false)
-      setSucceeded(true)
-      setErrorState(null)
-      console.log('[Nekuda] Card token received:', tokenId)
-      
-      // Refresh to switch to card management mode
-      setTimeout(() => {
-        checkForExistingCards()
-        setSucceeded(false) // Reset for next time
-      }, 1000)
-    } else {
-      setErrorState('Payment submission failed')
-      setProcessing(false)
-    }
-  }
-
-  const handleCardSave = async (card) => {
-    console.log('[Nekuda] Card saved in management:', card)
-    await checkForExistingCards()
-  }
-
-  const handleCardDelete = async (cardId) => {
-    console.log('[Nekuda] Card deleted:', cardId)
-    await checkForExistingCards()
-  }
-
-  const handleDefaultCardSet = async (cardId) => {
-    console.log('[Nekuda] Default card set:', cardId)
-    await checkForExistingCards()
+    })
   }
 
   if (!nekudaComponents) {
     return React.createElement('div', {
       style: { 
-        color: 'white', 
+        color: 'rgba(255, 255, 255, 0.6)', 
         textAlign: 'center', 
-        padding: '20px' 
+        padding: '20px',
+        fontSize: '14px'
       }
-    }, 'Loading Nekuda SDK...')
+    }, 'Loading wallet...')
   }
 
-  const { NekudaWalletProvider, NekudaPaymentForm, NekudaCardManagement, createWalletApiService } = nekudaComponents
+  const { NekudaWalletProvider, NekudaCardManagement } = nekudaComponents
 
-  // Show card management if user has cards, otherwise show payment form for first card
-  if (showCardManagement) {
-    const apiService = createWalletApiService({
-      customerId: 'demo-customer',
-      publicKey: NEKUDA_PUBLIC_KEY
-    })
-
-    return React.createElement(
-      NekudaWalletProvider,
-      {
-        publicKey: NEKUDA_PUBLIC_KEY,
-        userId: userId
+  // Dark theme styling aligned with style.css
+  const darkTheme = {
+    styles: {
+      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif',
+      fontSize: '14px'
+    },
+    walletStyles: {
+      modal: {
+        backgroundColor: '#111113',
+        color: '#ffffff',
+        border: '1px solid #1e1e20',
+        borderRadius: '16px',
+        backdropFilter: 'blur(20px)'
       },
-      React.createElement(NekudaCardManagement, {
-        open: true,
-        apiService: apiService,
-        userId: userId,
-        onCardSave: handleCardSave,
-        onCardDelete: handleCardDelete,
-        onDefaultCardSet: handleDefaultCardSet,
-        savedCards: savedCards
-      })
-    )
+      cardItem: {
+        backgroundColor: '#1e1e20',
+        color: '#ffffff',
+        border: '1px solid #2a2a2d',
+        borderRadius: '12px',
+        padding: '16px',
+        marginBottom: '12px',
+        transition: 'all 0.3s ease',
+        ':hover': {
+          borderColor: '#00D2FF',
+          boxShadow: '0 0 20px rgba(0, 210, 255, 0.15)'
+        }
+      },
+      button: {
+        primary: {
+          background: 'linear-gradient(135deg, #00D2FF 0%, #3A7BD5 100%)',
+          color: '#ffffff',
+          border: 'none',
+          borderRadius: '12px',
+          padding: '12px 24px',
+          fontSize: '14px',
+          fontWeight: '500',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+          boxShadow: '0 4px 16px rgba(0, 210, 255, 0.2)'
+        },
+        secondary: {
+          backgroundColor: '#1e1e20',
+          color: '#ffffff',
+          border: '1px solid #2a2a2d',
+          borderRadius: '12px',
+          padding: '12px 24px',
+          fontSize: '14px',
+          fontWeight: '500',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease'
+        },
+        ghost: {
+          backgroundColor: 'transparent',
+          color: 'rgba(255, 255, 255, 0.6)',
+          border: 'none',
+          padding: '8px 12px',
+          fontSize: '14px',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease'
+        }
+      }
+    },
+    elementsConfig: {
+      cardNumber: {
+        base: {
+          backgroundColor: '#1e1e20',
+          border: '1px solid #2a2a2d',
+          color: '#ffffff',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          '::placeholder': {
+            color: 'rgba(255, 255, 255, 0.4)'
+          }
+        },
+        focus: {
+          borderColor: '#00D2FF',
+          outline: 'none',
+          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+        },
+        error: {
+          borderColor: '#ff4444',
+          color: '#ff4444'
+        }
+      },
+      cardExpiry: {
+        base: {
+          backgroundColor: '#1e1e20',
+          border: '1px solid #2a2a2d',
+          color: '#ffffff',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          '::placeholder': {
+            color: 'rgba(255, 255, 255, 0.4)'
+          }
+        },
+        focus: {
+          borderColor: '#00D2FF',
+          outline: 'none',
+          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+        },
+        error: {
+          borderColor: '#ff4444'
+        }
+      },
+      cardCvv: {
+        base: {
+          backgroundColor: '#1e1e20',
+          border: '1px solid #2a2a2d',
+          color: '#ffffff',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          '::placeholder': {
+            color: 'rgba(255, 255, 255, 0.4)'
+          }
+        },
+        focus: {
+          borderColor: '#00D2FF',
+          outline: 'none',
+          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+        },
+        error: {
+          borderColor: '#ff4444'
+        }
+      },
+      name: {
+        base: {
+          backgroundColor: '#1e1e20',
+          border: '1px solid #2a2a2d',
+          color: '#ffffff',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          '::placeholder': {
+            color: 'rgba(255, 255, 255, 0.4)'
+          }
+        },
+        focus: {
+          borderColor: '#00D2FF',
+          outline: 'none',
+          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+        }
+      },
+      email: {
+        base: {
+          backgroundColor: '#1e1e20',
+          border: '1px solid #2a2a2d',
+          color: '#ffffff',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          '::placeholder': {
+            color: 'rgba(255, 255, 255, 0.4)'
+          }
+        },
+        focus: {
+          borderColor: '#00D2FF',
+          outline: 'none',
+          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+        }
+      },
+      billingAddress: {
+        base: {
+          backgroundColor: '#1e1e20',
+          border: '1px solid #2a2a2d',
+          color: '#ffffff',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          '::placeholder': {
+            color: 'rgba(255, 255, 255, 0.4)'
+          }
+        },
+        focus: {
+          borderColor: '#00D2FF',
+          outline: 'none',
+          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+        }
+      },
+      city: {
+        base: {
+          backgroundColor: '#1e1e20',
+          border: '1px solid #2a2a2d',
+          color: '#ffffff',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          '::placeholder': {
+            color: 'rgba(255, 255, 255, 0.4)'
+          }
+        },
+        focus: {
+          borderColor: '#00D2FF',
+          outline: 'none',
+          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+        }
+      },
+      state: {
+        base: {
+          backgroundColor: '#1e1e20',
+          border: '1px solid #2a2a2d',
+          color: '#ffffff',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          '::placeholder': {
+            color: 'rgba(255, 255, 255, 0.4)'
+          }
+        },
+        focus: {
+          borderColor: '#00D2FF',
+          outline: 'none',
+          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+        }
+      },
+      zipCode: {
+        base: {
+          backgroundColor: '#1e1e20',
+          border: '1px solid #2a2a2d',
+          color: '#ffffff',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          '::placeholder': {
+            color: 'rgba(255, 255, 255, 0.4)'
+          }
+        },
+        focus: {
+          borderColor: '#00D2FF',
+          outline: 'none',
+          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+        }
+      },
+      phoneNumber: {
+        base: {
+          backgroundColor: '#1e1e20',
+          border: '1px solid #2a2a2d',
+          color: '#ffffff',
+          padding: '12px',
+          borderRadius: '8px',
+          fontSize: '14px',
+          '::placeholder': {
+            color: 'rgba(255, 255, 255, 0.4)'
+          }
+        },
+        focus: {
+          borderColor: '#00D2FF',
+          outline: 'none',
+          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+        }
+      }
+    }
   }
 
-  // Initial card collection using NekudaPaymentForm (following docs exactly)
+  // Use NekudaCardManagement for both adding first card and managing existing cards
   return React.createElement(
     NekudaWalletProvider,
     {
       publicKey: NEKUDA_PUBLIC_KEY,
       userId: userId
     },
-    React.createElement('div', {
-      style: {
-        color: 'white'
-      }
-    }, [
-      React.createElement('h3', {
-        key: 'title',
-        style: {
-          marginBottom: '16px',
-          fontSize: '18px',
-          fontWeight: '600'
-        }
-      }, 'Add Your First Payment Method'),
-      
-      React.createElement('p', {
-        key: 'description',
-        style: {
-          marginBottom: '12px',
-          color: 'rgba(255, 255, 255, 0.7)',
-          fontSize: '14px'
-        }
-      }, 'Your payment information will be securely stored and tokenized.'),
-      
-      React.createElement('div', {
-        key: 'demo-warning',
-        style: {
-          marginBottom: '20px',
-          padding: '12px',
-          backgroundColor: 'rgba(255, 193, 7, 0.1)',
-          borderLeft: '3px solid #ffc107',
-          borderRadius: '4px'
-        }
-      }, React.createElement('p', {
-        style: {
-          margin: '0',
-          color: '#ffc107',
-          fontSize: '13px',
-          fontWeight: '500'
-        }
-      }, '⚠️ Demo only - Do not enter real payment details')),
-      
-      React.createElement(NekudaPaymentForm, {
-        key: 'form',
-        onSave: handlePaymentSave
-      }, [
-        errorState && React.createElement('div', {
-          key: 'error',
-          style: { 
-            color: 'red', 
-            marginBottom: '10px',
-            fontSize: '14px'
-          }
-        }, errorState),
-        
-        React.createElement('button', {
-          key: 'submit',
-          type: 'submit',
-          disabled: processing || succeeded,
-          style: {
-            marginTop: '16px',
-            backgroundColor: succeeded ? '#10b981' : '#3b82f6',
-            color: 'white',
-            border: 'none',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            fontSize: '14px',
-            fontWeight: '500',
-            cursor: processing || succeeded ? 'not-allowed' : 'pointer',
-            width: '100%',
-            opacity: processing ? 0.7 : 1
-          }
-        }, processing ? 'Processing...' : succeeded ? '✓ Saved Successfully!' : 'Save Payment Details'),
-        
-        succeeded && React.createElement('div', {
-          key: 'success',
-          style: { 
-            color: '#10b981', 
-            marginTop: '10px',
-            fontSize: '14px'
-          }
-        }, 'Payment method saved successfully!')
-      ])
-    ])
+    React.createElement(NekudaCardManagement, {
+      open: true,
+      defaultCardDetails: prefillData,
+      onAddCardClick: handleAddCardClick,
+      onCardsUpdated: handleCardsUpdated,
+      ...darkTheme
+    })
   )
 }
 
