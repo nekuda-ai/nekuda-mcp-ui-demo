@@ -209,16 +209,6 @@ async def mcp_endpoint(raw_request: Dict[str, Any]):
                     }
                 ),
                 MCPTool(
-                    name="get_cart",
-                    description="Get current cart contents with interactive React UI",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "session_id": {"type": "string", "description": "Session ID for cart"}
-                        }
-                    }
-                ),
-                MCPTool(
                     name="checkout",
                     description="Checkout with current cart contents using React checkout form",
                     inputSchema={
@@ -329,9 +319,6 @@ async def mcp_endpoint(raw_request: Dict[str, Any]):
             elif tool_name == "add_to_cart":
                 session_id = arguments.get("session_id") or "default"
                 return await handle_add_to_cart_remote_dom(request.id, arguments, session_id)
-            elif tool_name == "get_cart":
-                session_id = arguments.get("session_id") or "default"
-                return await handle_get_cart_remote_dom(request.id, session_id)
             elif tool_name == "checkout":
                 session_id = arguments.get("session_id") or "default"
                 return await handle_checkout_remote_dom(request.id, session_id, arguments)

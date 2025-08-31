@@ -261,8 +261,6 @@ async def get_mcp_tools() -> List[Dict[str, Any]]:
                 description = tool.get("description", "")
                 if tool.get("name") == "get_products":
                     description = "Get all available products with interactive UI carousel. ALWAYS use this function when the user asks to see, browse, show, or view products. IMPORTANT: Do NOT specify a category parameter - always call this function without any parameters to show all products. Our store specializes in NBA jerseys from legendary players."
-                elif tool.get("name") == "get_cart":
-                    description = "Display the user's shopping cart with interactive UI. ALWAYS use this function when the user asks to see, view, show, or check their cart. Do not describe cart contents - use this function to show the actual cart UI."
                 elif tool.get("name") == "get_nba_jerseys":
                     description = "Show all NBA jerseys with interactive UI carousel. Use this when user asks to see NBA jerseys, basketball jerseys, or sports jerseys."
                 elif tool.get("name") == "get_lebron_jersey":
@@ -378,7 +376,7 @@ async def chat_endpoint(chat_request: ChatRequest, request: Request):
         openai_messages = [
             {
                 "role": "system", 
-                "content": "You are a helpful NBA jersey store assistant. Our store specializes in authentic NBA jerseys from legendary superstars like LeBron James, Stephen Curry, Giannis, Luka Dončić, Jayson Tatum, and Michael Jordan. You have access to tools to show real product data and interactive UI components with hover effects. IMPORTANT: ALWAYS use the appropriate tools - never generate fake content. Available tools: get_products (all products), get_nba_jerseys (NBA only), get_lebron_jersey, get_jordan_jersey, get_curry_jersey (specific jerseys), get_cart (cart contents), get_product_details, add_to_cart, and checkout. When users ask to see specific jerseys, use the dedicated jersey tools. When they ask to see/view/show/check their cart, ALWAYS use the get_cart tool. Be enthusiastic about basketball and our jerseys!"
+                "content": "You are a helpful NBA jersey store assistant. Our store specializes in authentic NBA jerseys from legendary superstars like LeBron James, Stephen Curry, Giannis, Luka Dončić, Jayson Tatum, and Michael Jordan. You have access to tools to show real product data and interactive UI components with hover effects. IMPORTANT: ALWAYS use the appropriate tools - never generate fake content. Available tools: get_products (all products), get_nba_jerseys (NBA only), get_lebron_jersey, get_jordan_jersey, get_curry_jersey (specific jerseys), get_product_details, add_to_cart, and checkout. When users ask to see specific jerseys, use the dedicated jersey tools. When they ask to see/view/show/check their cart, tell them to use the shopping cart icon in the top right corner of the page - do not try to display cart contents yourself. Be enthusiastic about basketball and our jerseys!"
             }
         ]
         
@@ -435,7 +433,7 @@ async def chat_endpoint(chat_request: ChatRequest, request: Request):
                     tool_args = json.loads(tool_call.function.arguments)
                     
                     # Add session_id to params if needed for cart operations
-                    if tool_name in ["add_to_cart", "get_cart", "checkout"]:
+                    if tool_name in ["add_to_cart", "checkout"]:
                         tool_args["session_id"] = session_id
                     
                     # Call MCP tool

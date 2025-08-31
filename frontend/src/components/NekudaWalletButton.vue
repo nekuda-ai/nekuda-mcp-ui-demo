@@ -420,13 +420,34 @@ const NekudaWalletComponent = () => {
       publicKey: NEKUDA_PUBLIC_KEY,
       userId: userId
     },
-    React.createElement(NekudaCardManagement, {
-      open: true,
-      defaultCardDetails: prefillData,
-      onAddCardClick: handleAddCardClick,
-      onCardsUpdated: handleCardsUpdated,
-      ...darkTheme
-    })
+    React.createElement('div', null,
+      // Warning box
+      React.createElement('div', {
+        key: 'demo-warning',
+        style: {
+          marginBottom: '20px',
+          padding: '12px',
+          backgroundColor: 'rgba(255, 193, 7, 0.1)',
+          borderLeft: '3px solid #ffc107',
+          borderRadius: '4px'
+        }
+      }, React.createElement('p', {
+        style: {
+          margin: '0',
+          color: '#ffc107',
+          fontSize: '13px',
+          fontWeight: '500'
+        }
+      }, '⚠️ Demo only - Do not enter real payment details')),
+      // Card management component
+      React.createElement(NekudaCardManagement, {
+        open: true,
+        defaultCardDetails: prefillData,
+        onAddCardClick: handleAddCardClick,
+        onCardsUpdated: handleCardsUpdated,
+        ...darkTheme
+      })
+    )
   )
 }
 
