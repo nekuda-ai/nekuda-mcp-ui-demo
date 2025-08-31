@@ -11,18 +11,22 @@ import logging
 import os
 import uuid
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from pydantic import BaseModel
 
 # Configure logger for this module
 logger = logging.getLogger("nekuda_service")
 
-# Import Nekuda SDK (will be available after pip install)
+# Import Nekuda SDK with enhanced error handling
 try:
-    from nekuda import NekudaClient, MandateData
+    from nekuda import NekudaClient, MandateData, NekudaError
 except ImportError:
     # Mock for development until real keys are provided
+    class NekudaError(Exception):
+        """Base exception for Nekuda SDK errors"""
+        pass
+    
     class NekudaClient:
         def __init__(self, secret_key: str):
             self.secret_key = secret_key
@@ -35,10 +39,15 @@ except ImportError:
             return MockUserContext(user_id)
     
     class MandateData:
-        def __init__(self, product: str, price: float, currency: str):
+        def __init__(self, product: str, price: float, currency: str, 
+                     merchant: str = None, merchant_link: str = None, 
+                     product_description: str = None):
             self.product = product
             self.price = price
             self.currency = currency
+            self.merchant = merchant
+            self.merchant_link = merchant_link
+            self.product_description = product_description
     
     class MockUserContext:
         def __init__(self, user_id: str):
@@ -65,16 +74,26 @@ except ImportError:
     
     class MockCardDetails:
         def __init__(self):
-            self.pan = "4111111111111111"  # Test card
-            self.expiry_month = "12"
-            self.expiry_year = "25"
-            self.cvv = "123"
-            self.cardholder_name = "Test User"
+            self.card_number = "4111111111111111"  # Test card
+            self.card_exp = "12/25"  # MM/YY format
+            self.card_cvv = "123"
+            self.card_holder = "Test User"
+
+
+@dataclass
+class PaymentCredentials:
+    """Enhanced payment credentials from Nekuda"""
+    token: str
+    pan: str
+    expiry_month: str
+    expiry_year: str
+    cvv: str
+    cardholder_name: str
 
 
 @dataclass
 class NekudaPaymentData:
-    """Payment data retrieved from Nekuda"""
+    """Payment data retrieved from Nekuda - legacy compatibility"""
     token: str
     pan: str
     expiry_month: str
@@ -90,6 +109,28 @@ class CheckoutRequest(BaseModel):
     cart_items: list
     product: str = "E-commerce Purchase"
     currency: str = "USD"
+
+
+class NekudaCheckoutRequest(BaseModel):
+    """Enhanced request model for new checkout endpoint"""
+    user_id: str
+    cart_items: List[Dict[str, Any]]
+    cart_total: float
+    product_summary: str = "Cart Purchase"
+    currency: str = "USD"
+    shipping_address: Optional[Dict[str, str]] = None
+    quote_session_id: Optional[str] = None
+
+
+class NekudaCheckoutResponse(BaseModel):
+    """Response model for checkout endpoint - returns PAN for MCP server to process"""
+    success: bool
+    mandate_id: str
+    payment_credentials: Optional[Dict[str, str]] = None
+    currency: str
+    timestamp: str
+    message: str
+    error_details: Optional[str] = None
 
 
 class NekudaService:
@@ -133,6 +174,64 @@ class NekudaService:
         except Exception as e:
             raise Exception(f"Failed to create mandate: {str(e)}")
 
+    async def create_checkout_mandate(self, user_id: str, cart_data: Dict) -> str:
+        """Create mandate when user clicks checkout - captures purchase intent"""
+        try:
+            user_context = self.get_user_context(user_id)
+            
+            # Create detailed mandate for checkout with comprehensive product info
+            items_count = len(cart_data.get('items', []))
+            
+            # Build detailed product description from cart items
+            product_names = []
+            for item in cart_data.get('items', []):
+                if isinstance(item, dict):
+                    item_name = item.get('name', item.get('product_name', 'Unknown Product'))
+                    quantity = item.get('quantity', 1)
+                    if quantity > 1:
+                        product_names.append(f"{quantity}x {item_name}")
+                    else:
+                        product_names.append(item_name)
+            
+            # Create comprehensive product description
+            if product_names:
+                if len(product_names) == 1:
+                    main_product = product_names[0]
+                    product_description = f"Purchase: {main_product}"
+                else:
+                    main_product = product_names[0]
+                    if len(product_names) <= 3:
+                        product_description = f"Purchase: {', '.join(product_names)}"
+                    else:
+                        product_description = f"Purchase: {main_product} and {len(product_names)-1} other items"
+            else:
+                main_product = "Cart Purchase"
+                product_description = f"Cart checkout: {items_count} items"
+            
+            mandate_data = MandateData(
+                product=main_product if len(product_names) == 1 else f"Cart Purchase ({items_count} items)",
+                price=cart_data["total"],  # This is the final total including tax and shipping
+                currency=cart_data["currency"],
+                merchant="Nekuda MCP Demo Store",
+                merchant_link="https://app.nekuda.ai/mcp-demo",
+                product_description=product_description
+            )
+            
+            logger.info(f"Creating checkout mandate for user {user_id}: ${cart_data['total']} {cart_data['currency']}")
+            
+            mandate_response = user_context.create_mandate(mandate_data)
+            mandate_id = mandate_response.mandate_id
+            
+            logger.info(f"Successfully created mandate {mandate_id} for checkout")
+            return mandate_id
+            
+        except NekudaError as e:
+            logger.error(f"Nekuda API error creating mandate: {e}")
+            raise Exception(f"Failed to create mandate: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error creating mandate: {e}")
+            raise Exception(f"Failed to create mandate: {str(e)}")
+    
     async def create_mandate_for_checkout(
         self, 
         user_id: str, 
@@ -143,84 +242,142 @@ class NekudaService:
         cart_items: list
     ) -> str:
         """
-        Create a mandate specifically for checkout button click
-        This captures the user's explicit intent to purchase when they click checkout
+        Legacy method for backward compatibility
         """
-        try:
-            user_context = self.get_user_context(user_id)
-            
-            # Create detailed product description that reflects checkout action
-            detailed_product = f"{product_name} (Checkout Action: {checkout_context})"
-            if cart_items:
-                item_summary = f" - {len(cart_items)} items"
-                detailed_product += item_summary
-            
-            logger.debug(f"Creating checkout mandate for user {user_id}")
-            logger.debug(f"Product: {detailed_product}")
-            logger.debug(f"Amount: ${cart_total} {currency}")
-            
-            mandate_data = MandateData(
-                product=detailed_product,
-                price=cart_total,
-                currency=currency
-            )
-            
-            mandate_response = user_context.create_mandate(mandate_data)
-            mandate_id = mandate_response.mandate_id
-            
-            logger.debug(f"Successfully created mandate {mandate_id} for checkout")
-            return mandate_id
-        
-        except Exception as e:
-            logger.error(f"Error creating checkout mandate: {e}")
-            raise Exception(f"Failed to create checkout mandate: {str(e)}")
+        cart_data = {
+            "product_summary": product_name,
+            "total": cart_total,
+            "currency": currency,
+            "items": cart_items
+        }
+        return await self.create_checkout_mandate(user_id, cart_data)
     
-    async def get_payment_credentials(self, user_id: str, mandate_id: str) -> NekudaPaymentData:
-        """
-        Retrieve payment credentials (token and PAN) for a mandate
-        This is the main method called during checkout
-        """
+    async def get_payment_credentials_for_checkout(self, user_id: str, mandate_id: str) -> PaymentCredentials:
+        """Complete token→credentials flow for checkout processing"""
         try:
             user_context = self.get_user_context(user_id)
+            
+            logger.info(f"Requesting card reveal token for mandate {mandate_id}")
             
             # Request card reveal token
             reveal_response = user_context.request_card_reveal_token(mandate_id=mandate_id)
             
+            logger.info(f"Revealing card details with token")
+            
             # Use token to reveal card details
             card_details = user_context.reveal_card_details(reveal_response.token)
             
-            return NekudaPaymentData(
+            logger.info(f"Successfully retrieved payment credentials for mandate {mandate_id}")
+            
+            # Parse expiration date from MM/YY format
+            exp_parts = card_details.card_exp.split('/')
+            expiry_month = exp_parts[0]
+            expiry_year = exp_parts[1]
+            
+            return PaymentCredentials(
                 token=reveal_response.token,
-                pan=card_details.pan,
-                expiry_month=card_details.expiry_month,
-                expiry_year=card_details.expiry_year,
-                cvv=card_details.cvv,
-                cardholder_name=getattr(card_details, 'cardholder_name', 'Cardholder')
+                pan=card_details.card_number,
+                expiry_month=expiry_month,
+                expiry_year=expiry_year,
+                cvv=card_details.card_cvv,
+                cardholder_name=card_details.card_holder
             )
-        
+            
+        except NekudaError as e:
+            logger.error(f"Nekuda API error retrieving credentials: {e}")
+            raise Exception(f"Failed to retrieve payment credentials: {str(e)}")
         except Exception as e:
+            logger.error(f"Unexpected error retrieving credentials: {e}")
             raise Exception(f"Failed to retrieve payment credentials: {str(e)}")
     
-    async def has_stored_payment_methods(self, user_id: str) -> bool:
+    async def get_payment_credentials(self, user_id: str, mandate_id: str) -> NekudaPaymentData:
         """
-        Check if user has stored payment methods in their Nekuda wallet
+        Legacy method for backward compatibility
         """
+        credentials = await self.get_payment_credentials_for_checkout(user_id, mandate_id)
+        return NekudaPaymentData(
+            token=credentials.token,
+            pan=credentials.pan,
+            expiry_month=credentials.expiry_month,
+            expiry_year=credentials.expiry_year,
+            cvv=credentials.cvv,
+            cardholder_name=credentials.cardholder_name
+        )
+    
+    async def validate_user_wallet(self, user_id: str) -> bool:
+        """Verify user has valid payment methods before checkout"""
         try:
             user_context = self.get_user_context(user_id)
             
-            logger.debug(f"Checking payment methods for user {user_id}")
+            logger.info(f"Validating wallet for user {user_id}")
             
-            # Check if user has added payment methods (demo tracking)
-            has_methods = user_id in self._users_with_payment_methods
+            # First check session-based tracking (for newly added cards)
+            has_session_methods = user_id in self._users_with_payment_methods
             
-            logger.debug(f"User {user_id} has payment methods: {has_methods}")
-            logger.debug(f"Users with payment methods: {list(self._users_with_payment_methods)}")
+            if has_session_methods:
+                logger.info(f"User {user_id} has payment methods from current session")
+                return True
             
-            return has_methods
+            # Check with Nekuda SDK for existing payment methods
+            logger.info(f"Checking Nekuda SDK for existing payment methods for user {user_id}")
             
-        except Exception as e:
-            logger.error(f"Error checking payment methods for user {user_id}: {e}")
+            # The most reliable way to check if a user has payment methods is to attempt 
+            # the actual checkout flow they're trying to perform - if they have no payment methods,
+            # the create_mandate call will fail with a specific error
+            try:
+                # Attempt to create a minimal mandate to test wallet validity
+                # This is a common pattern for wallet validation in payment systems
+                from nekuda import MandateData
+                
+                test_mandate_data = MandateData(
+                    product="Wallet Validation",
+                    price=1.00,  # Use a small but realistic amount
+                    currency="USD"
+                )
+                
+                # Attempt to create the mandate - this will fail if no payment methods exist
+                mandate_response = user_context.create_mandate(test_mandate_data)
+                
+                if mandate_response and hasattr(mandate_response, 'mandate_id'):
+                    logger.info(f"✅ User {user_id} has valid payment methods in Nekuda wallet")
+                    return True
+                else:
+                    logger.info(f"❌ User {user_id} wallet validation failed - no valid response")
+                    return False
+                    
+            except Exception as validation_error:
+                # Parse the error to determine if it's specifically about missing payment methods
+                error_message = str(validation_error).lower()
+                
+                # Check for specific Nekuda error messages indicating no payment methods
+                no_payment_indicators = [
+                    "no payment info found",
+                    "no payment method",
+                    "payment info not found",
+                    "no stored payment",
+                    "no cards found"
+                ]
+                
+                if any(indicator in error_message for indicator in no_payment_indicators):
+                    logger.info(f"❌ User {user_id} has no payment methods in Nekuda wallet: {validation_error}")
+                    return False
+                else:
+                    # For other errors (network, API issues), log as warning and return False
+                    logger.warning(f"⚠️ Wallet validation error for user {user_id} (assuming no payment methods): {validation_error}")
+                    return False
+            
+        except NekudaError as e:
+            logger.error(f"Nekuda API error validating wallet: {e}")
             return False
+        except Exception as e:
+            logger.error(f"Error validating wallet for user {user_id}: {e}")
+            return False
+    
+    async def has_stored_payment_methods(self, user_id: str) -> bool:
+        """
+        Legacy method for backward compatibility
+        """
+        return await self.validate_user_wallet(user_id)
     
     def add_payment_method_for_user(self, user_id: str):
         """Mark that user has added a payment method (for demo tracking)"""
@@ -327,5 +484,12 @@ class NekudaService:
             raise Exception(f"Checkout flow failed: {str(e)}")
 
 
-# Global service instance
-nekuda_service = NekudaService()
+# Global service instance - initialize after environment is loaded
+nekuda_service = None
+
+def get_nekuda_service() -> NekudaService:
+    """Get or create the global Nekuda service instance"""
+    global nekuda_service
+    if nekuda_service is None:
+        nekuda_service = NekudaService()
+    return nekuda_service

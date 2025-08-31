@@ -69,6 +69,7 @@ export const useCartStore = defineStore('cart', () => {
   const quoteSessionId = ref<string>('')
   const shippingAddress = ref<QuoteShippingAddress | null>(null)
   const isLoadingQuote = ref(false)
+  const isCheckingOut = ref(false)
   const quoteError = ref<string | null>(null)
   
   // Simple debounced sync for demo
@@ -563,6 +564,7 @@ export const useCartStore = defineStore('cart', () => {
     quoteSessionId,
     shippingAddress,
     isLoadingQuote,
+    isCheckingOut,
     quoteError,
     
     // Computed
@@ -592,6 +594,11 @@ export const useCartStore = defineStore('cart', () => {
     updateQuote,
     updateShippingAddress,
     selectShippingOption,
-    loadBillingDetailsFromWallet
+    loadBillingDetailsFromWallet,
+    
+    // Checkout actions
+    setCheckoutLoading: (loading: boolean) => {
+      isCheckingOut.value = loading
+    }
   }
 })

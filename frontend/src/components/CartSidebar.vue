@@ -206,12 +206,20 @@
           <div class="space-y-3 pt-2">
             <button 
               @click="proceedToCheckout"
-              class="w-full bg-gradient-to-r from-[#00D2FF] to-[#3A7BD5] hover:shadow-[0_0_20px_rgba(0,210,255,0.4)] text-white py-4 px-6 rounded-2xl font-semibold transition-all duration-300 hover:scale-105 active:scale-95 min-h-touch"
+              :disabled="cartStore.isCheckingOut"
+              :class="{ 'opacity-60 cursor-not-allowed': cartStore.isCheckingOut }"
+              class="w-full bg-gradient-to-r from-[#00D2FF] to-[#3A7BD5] hover:shadow-[0_0_20px_rgba(0,210,255,0.4)] text-white py-4 px-6 rounded-2xl font-semibold transition-all duration-300 hover:scale-105 active:scale-95 min-h-touch flex items-center justify-center gap-2"
             >
-              Proceed to Checkout
+              <div 
+                v-if="cartStore.isCheckingOut"
+                class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"
+              ></div>
+              <span>{{ cartStore.isCheckingOut ? 'Processing...' : 'Place Order' }}</span>
             </button>
             <button 
               @click="continueShopping"
+              :disabled="cartStore.isCheckingOut"
+              :class="{ 'opacity-60 cursor-not-allowed': cartStore.isCheckingOut }"
               class="w-full bg-[#1e1e20] hover:bg-[#2a2a2d] border border-[#2a2a2d] hover:border-[#00D2FF]/30 text-white py-3 px-6 rounded-2xl font-medium transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,210,255,0.1)] min-h-touch"
             >
               Continue Shopping
@@ -302,6 +310,7 @@ const continueShopping = () => {
 
 const proceedToCheckout = async () => {
   try {
+    cartStore.setCheckoutLoading(true)
     console.log('Starting atomic Nekuda checkout...')
     
     // Step 1: Check if user has payment methods
@@ -310,6 +319,7 @@ const proceedToCheckout = async () => {
     
     if (!userHasPaymentMethods) {
       alert('Please add a payment method to your Nekuda wallet before checkout.\n\nClick the Wallet button in the header to add a payment method.')
+      cartStore.setCheckoutLoading(false)
       return
     }
 
@@ -321,6 +331,7 @@ const proceedToCheckout = async () => {
       // Check again after update
       if (!cartStore.currentQuote || cartStore.currentQuote.status !== 'final') {
         alert('Unable to finalize pricing. Please add a complete shipping address.')
+        cartStore.setCheckoutLoading(false)
         return
       }
     }
@@ -365,12 +376,14 @@ const proceedToCheckout = async () => {
     cartStore.clearCart(chatStore.sessionId)
     setTimeout(() => {
       cartStore.closeCart()
+      cartStore.setCheckoutLoading(false)
     }, 1000) // Small delay to let user see success message
     
   } catch (error) {
     console.error('Atomic Nekuda checkout failed:', error)
     const errorMessage = error.response?.data?.detail || error.message || 'Unknown error'
     alert(`Checkout failed: ${errorMessage}\n\nPlease check your Nekuda wallet configuration.`)
+    cartStore.setCheckoutLoading(false)
   }
 }
 </script>

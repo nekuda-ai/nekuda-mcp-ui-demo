@@ -4,11 +4,15 @@
 import json
 import sys
 import os
+import logging
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from typing import Dict, Any, List
 from models import MCPResponse, products, carts, create_ui_resource
 from shared.config import UI_THEME
+
+# Configure logger for this module
+logger = logging.getLogger("remote_dom_handlers")
 
 # Get media server URL from environment
 MEDIA_SERVER_URL = os.getenv('MEDIA_SERVER_URL', 'http://localhost:3003')
@@ -1747,6 +1751,7 @@ function EmptyCart({ onAction }) {
 function CartDisplay({{ onAction }}) {{
     const cartItems = {json.dumps(cart_items_data)};
     const cartTotal = {cart["total"]};
+    const [isLoading, setIsLoading] = useState(false);
     
     const updateQuantity = (productId, variantId, change) => {{
         const item = cartItems.find(i => i.product_id === productId && i.variant_id === variantId);
@@ -1782,6 +1787,8 @@ function CartDisplay({{ onAction }}) {{
     }};
 
     const handleCheckout = () => {{
+        setIsLoading(true);
+        
         onAction({{
             type: 'tool',
             payload: {{
@@ -2044,49 +2051,90 @@ function CartDisplay({{ onAction }}) {{
                 React.createElement('button', {{
                     key: 'continue',
                     onClick: handleContinueShopping,
+                    disabled: isLoading,
                     style: {{
                         flex: '1',
                         padding: '14px 20px',
                         border: '1px solid rgba(100, 100, 105, 0.8)',
                         borderRadius: '8px',
-                        background: 'rgba(100, 100, 105, 0.8)',
-                        color: 'rgba(255, 255, 255, 0.9)',
+                        background: isLoading ? 'rgba(70, 70, 75, 0.6)' : 'rgba(100, 100, 105, 0.8)',
+                        color: isLoading ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.9)',
                         fontSize: '0.9rem',
                         fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                        cursor: isLoading ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        opacity: isLoading ? '0.6' : '1'
                     }}
                 }}, 'Continue Shopping'),
                 
                 React.createElement('button', {{
                     key: 'checkout',
                     onClick: handleCheckout,
+                    disabled: isLoading,
                     style: {{
                         flex: '1',
                         padding: '14px 20px',
-                        border: '1px solid rgba(206, 17, 65, 0.4)',
+                        border: `1px solid rgba(206, 17, 65, ${{isLoading ? '0.2' : '0.4'}})`,
                         borderRadius: '8px',
-                        background: 'linear-gradient(135deg, #00D2FF 0%, #3A7BD5 100%)',
+                        background: isLoading 
+                            ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)'
+                            : 'linear-gradient(135deg, #00D2FF 0%, #3A7BD5 100%)',
                         color: 'white',
                         fontSize: '0.9rem',
                         fontWeight: '600',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 12px rgba(206, 17, 65, 0.35)',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                        cursor: isLoading ? 'not-allowed' : 'pointer',
+                        boxShadow: isLoading 
+                            ? '0 4px 12px rgba(107, 114, 128, 0.25)'
+                            : '0 4px 12px rgba(206, 17, 65, 0.35)',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        opacity: isLoading ? '0.8' : '1'
                     }},
                     onMouseEnter: (e) => {{
-                        e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                        e.target.style.boxShadow = '0 8px 20px rgba(0, 210, 255, 0.35)';
+                        if (!isLoading) {{
+                            e.target.style.transform = 'translateY(-2px) scale(1.02)';
+                            e.target.style.boxShadow = '0 8px 20px rgba(0, 210, 255, 0.35)';
+                        }}
                     }},
                     onMouseLeave: (e) => {{
-                        e.target.style.transform = 'translateY(0) scale(1)';
-                        e.target.style.boxShadow = '0 4px 12px rgba(0, 210, 255, 0.25)';
+                        if (!isLoading) {{
+                            e.target.style.transform = 'translateY(0) scale(1)';
+                            e.target.style.boxShadow = '0 4px 12px rgba(0, 210, 255, 0.25)';
+                        }}
                     }}
-                }}, 'Checkout')
+                }}, [
+                    isLoading && React.createElement('div', {{
+                        key: 'spinner',
+                        style: {{
+                            width: '16px',
+                            height: '16px',
+                            border: '2px solid rgba(255, 255, 255, 0.3)',
+                            borderTop: '2px solid white',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite'
+                        }}
+                    }}),
+                    React.createElement('span', {{
+                        key: 'text'
+                    }}, isLoading ? 'Processing...' : 'Place Order')
+                ])
             ])
         ])
     ]);
 }}
+
+// Add spinner animation CSS
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes spin {{
+        0% {{ transform: rotate(0deg); }}
+        100% {{ transform: rotate(360deg); }}
+    }}
+`;
+document.head.appendChild(style);
 """
 
     ui_resource = create_ui_resource(
@@ -2436,7 +2484,7 @@ function OrderConfirmation({{ onAction }}) {{
     )
 
 async def handle_checkout_remote_dom(request_id: str | int, session_id: str, arguments: Dict[str, Any] = None) -> MCPResponse:
-    """Handle checkout with remote-dom - Interactive checkout form"""
+    """Handle checkout with payment credentials from frontend - Pure merchant processing"""
     
     # Get cart
     cart = carts.get(session_id, {"items": [], "total": 0.0})
@@ -2447,23 +2495,320 @@ async def handle_checkout_remote_dom(request_id: str | int, session_id: str, arg
             error={"code": -32602, "message": "Cannot checkout with empty cart"}
         )
     
-    # Prepare order summary data
-    order_items = []
-    for item in cart["items"]:
-        product = products.get(item["product_id"])
-        variant = next((v for v in product.variants if v.id == item["variant_id"]), None) if product else None
-        
-        if product and variant:
-            item_price = product.price + variant.price_modifier
-            total_item_price = item_price * item["quantity"]
-            order_items.append({
-                "name": product.name,
-                "variant": variant.name,
-                "quantity": item["quantity"],
-                "total": total_item_price
-            })
+    # Extract payment credentials from frontend arguments
+    if not arguments:
+        return MCPResponse(
+            id=request_id,
+            error={"code": -32602, "message": "Payment information required"}
+        )
+    
+    try:
+        # Extract payment credentials sent from frontend
+        payment_method = arguments.get("paymentMethod")
+        if payment_method == "nekuda":
+            # Get Nekuda payment credentials from frontend
+            pan = arguments.get("nekudaPan")
+            cvv = arguments.get("cvv")
+            expiry_month = arguments.get("expiryMonth")
+            expiry_year = arguments.get("expiryYear")
+            cardholder_name = arguments.get("cardholderName")
+            
+            if not all([pan, cvv, expiry_month, expiry_year]):
+                return MCPResponse(
+                    id=request_id,
+                    error={"code": -32602, "message": "Incomplete payment credentials"}
+                )
+            
+            # Mock merchant payment processing using the PAN
+            import time
+            import random
+            order_id = f"ORD-{int(time.time())}"
+            tracking_number = f"TRK-{random.randint(100000, 999999)}"
+            
+            # Process payment with the PAN (this would be real merchant API)
+            payment_success = True  # Mock successful payment
+            
+            print(f"🏪 MERCHANT: Processing payment with PAN ending in {pan[-4:]}")
+            print(f"🏪 MERCHANT: Amount: ${cart['total']:.2f}")
+            print(f"🏪 MERCHANT: Cardholder: {cardholder_name}")
+            
+            if payment_success:
+                import random
+                tracking_number = f"TRK{random.randint(100000, 999999)}"
+                
+                # Clear cart after successful payment
+                carts[session_id] = {"items": [], "total": 0.0}
+                
+                # Return success response with tracking number
+                return MCPResponse(
+                    id=request_id,
+                    result={
+                        "content": [{
+                            "type": "resource",
+                            "resource": {
+                                "uri": f"ui://remote-component/remoteDom",
+                                "mimeType": "application/vnd.mcp-ui.remote-dom+javascript; framework=react",
+                                "framework": "react",
+                                "text": f"""
+function PaymentSuccess({{ onAction }}) {{
+    const handleContinueShopping = () => {{
+        onAction({{
+            type: 'tool',
+            payload: {{
+                toolName: 'get_products',
+                params: {{}}
+            }}
+        }});
+    }};
 
-    # Checkout form React component
+    return React.createElement('div', {{
+        style: {{
+            width: '100%',
+            maxWidth: '400px',
+            background: 'rgba(45, 45, 50, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(70, 70, 80, 0.8)',
+            borderRadius: '12px',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
+            padding: '24px 20px',
+            margin: '0 auto',
+            color: '#ffffff',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif',
+            textAlign: 'center'
+        }}
+    }}, [
+        // Success Icon
+        React.createElement('div', {{
+            key: 'icon',
+            style: {{
+                width: '60px',
+                height: '60px',
+                margin: '0 auto 16px',
+                background: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.8rem',
+                boxShadow: '0 6px 20px rgba(34, 197, 94, 0.3)'
+            }}
+        }}, '✅'),
+        
+        // Success Title
+        React.createElement('h1', {{
+            key: 'title',
+            style: {{
+                color: '#ffffff',
+                fontSize: '1.6rem',
+                fontWeight: '700',
+                marginBottom: '12px',
+                letterSpacing: '-0.02em'
+            }}
+        }}, 'Payment Successful!'),
+        
+        // Order Details
+        React.createElement('div', {{
+            key: 'details',
+            style: {{
+                background: 'rgba(34, 197, 94, 0.15)',
+                border: '1px solid rgba(34, 197, 94, 0.3)',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '20px',
+                fontSize: '0.9rem',
+                lineHeight: '1.6'
+            }}
+        }}, [
+            React.createElement('div', {{
+                key: 'order-id',
+                style: {{ marginBottom: '8px', color: '#22C55E', fontWeight: '600' }}
+            }}, 'Order ID: {order_id}'),
+            React.createElement('div', {{
+                key: 'tracking',
+                style: {{ marginBottom: '8px', color: '#22C55E', fontWeight: '600' }}
+            }}, 'Tracking: {tracking_number}'),
+            React.createElement('div', {{
+                key: 'total',
+                style: {{ marginBottom: '8px', color: 'rgba(255, 255, 255, 0.9)' }}
+            }}, 'Total: ${cart["total"]:.2f}'),
+            React.createElement('div', {{
+                key: 'payment',
+                style: {{ color: 'rgba(255, 255, 255, 0.9)' }}
+            }}, 'Payment: Card ending in {pan[-4:]}')
+        ]),
+        
+        // Continue Shopping Button
+        React.createElement('button', {{
+            key: 'continue',
+            onClick: handleContinueShopping,
+            style: {{
+                background: 'linear-gradient(135deg, #00D2FF 0%, #3A7BD5 100%)',
+                color: 'white',
+                border: 'none',
+                padding: '14px 28px',
+                borderRadius: '12px',
+                fontSize: '0.9375rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 6px 20px rgba(0, 210, 255, 0.25)',
+                letterSpacing: '-0.01em'
+            }},
+            onMouseEnter: (e) => {{
+                e.target.style.transform = 'translateY(-2px) scale(1.02)';
+                e.target.style.boxShadow = '0 12px 32px rgba(0, 210, 255, 0.35)';
+            }},
+            onMouseLeave: (e) => {{
+                e.target.style.transform = 'translateY(0) scale(1)';
+                e.target.style.boxShadow = '0 6px 20px rgba(0, 210, 255, 0.25)';
+            }}
+        }}, 'Continue Shopping')
+    ]);
+}}
+
+// Render the component
+if (typeof root !== 'undefined' && root) {{
+    const reactRoot = ReactDOM.createRoot(root);
+    reactRoot.render(React.createElement(PaymentSuccess));
+}}
+"""
+                            }
+                        }]
+                    }
+                )
+            else:
+                raise Exception("Merchant payment processing failed")
+        else:
+            # Return error UI
+            return MCPResponse(
+                id=request_id,
+                result={
+                    "content": [{
+                        "type": "resource", 
+                        "resource": {
+                            "uri": f"ui://remote-component/remoteDom",
+                            "mimeType": "application/vnd.mcp-ui.remote-dom+javascript; framework=react",
+                            "framework": "react",
+                            "text": f"""
+function CheckoutError({{ onAction }}) {{
+    const handleRetry = () => {{
+        onAction({{
+            type: 'tool',
+            payload: {{
+                toolName: 'checkout',
+                params: {{}}
+            }}
+        }});
+    }};
+
+    return React.createElement('div', {{
+        style: {{
+            width: '100%',
+            maxWidth: '400px',
+            background: 'rgba(45, 45, 50, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(220, 38, 127, 0.8)',
+            borderRadius: '12px',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
+            padding: '24px 20px',
+            margin: '0 auto',
+            color: '#ffffff',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif',
+            textAlign: 'center'
+        }}
+    }}, [
+        // Error Icon
+        React.createElement('div', {{
+            key: 'icon',
+            style: {{
+                width: '60px',
+                height: '60px',
+                margin: '0 auto 16px',
+                background: 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.8rem',
+                boxShadow: '0 6px 20px rgba(220, 38, 38, 0.3)'
+            }}
+        }}, '❌'),
+        
+        // Error Title
+        React.createElement('h1', {{
+            key: 'title',
+            style: {{
+                color: '#ffffff',
+                fontSize: '1.6rem',
+                fontWeight: '700',
+                marginBottom: '12px',
+                letterSpacing: '-0.02em'
+            }}
+        }}, 'Checkout Failed'),
+        
+        // Error Message
+        React.createElement('div', {{
+            key: 'message',
+            style: {{
+                background: 'rgba(220, 38, 38, 0.15)',
+                border: '1px solid rgba(220, 38, 38, 0.3)',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '20px',
+                fontSize: '0.9rem',
+                lineHeight: '1.6',
+                color: 'rgba(255, 255, 255, 0.9)'
+            }}
+        }}, '{checkout_result.get("error_details", "An error occurred during checkout")}'),
+        
+        // Retry Button
+        React.createElement('button', {{
+            key: 'retry',
+            onClick: handleRetry,
+            style: {{
+                background: 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)',
+                color: 'white',
+                border: 'none',
+                padding: '14px 28px',
+                borderRadius: '12px',
+                fontSize: '0.9375rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 6px 20px rgba(220, 38, 38, 0.25)',
+                letterSpacing: '-0.01em'
+            }},
+            onMouseEnter: (e) => {{
+                e.target.style.transform = 'translateY(-2px) scale(1.02)';
+                e.target.style.boxShadow = '0 12px 32px rgba(220, 38, 38, 0.35)';
+            }},
+            onMouseLeave: (e) => {{
+                e.target.style.transform = 'translateY(0) scale(1)';
+                e.target.style.boxShadow = '0 6px 20px rgba(220, 38, 38, 0.25)';
+            }}
+        }}, 'Try Again')
+    ]);
+}}
+
+// Render the component
+if (typeof root !== 'undefined' && root) {{
+    const reactRoot = ReactDOM.createRoot(root);
+    reactRoot.render(React.createElement(CheckoutError));
+}}
+"""
+                        }
+                    }]
+                }
+            )
+            
+    except Exception as e:
+        logger.error(f"Checkout error: {e}")
+        return MCPResponse(
+            id=request_id,
+            error={"code": -32603, "message": f"Checkout failed: {str(e)}"}
+        )
+
+    # OLD FORM CODE THAT SHOULD BE REPLACED - NOT USED ANYMORE
     script = f"""
 function CheckoutForm({{ onAction }}) {{
     const orderItems = {json.dumps(order_items)};
@@ -2475,6 +2820,8 @@ function CheckoutForm({{ onAction }}) {{
         payment_method: 'credit_card'
     }});
     
+    const [isLoading, setIsLoading] = useState(false);
+    
     const handleInputChange = (field, value) => {{
         setFormData(prev => ({{ ...prev, [field]: value }}));
     }};
@@ -2484,6 +2831,8 @@ function CheckoutForm({{ onAction }}) {{
             alert('Please fill in all required fields');
             return;
         }}
+        
+        setIsLoading(true);
         
         onAction({{
             type: 'tool',
@@ -2659,15 +3008,18 @@ function CheckoutForm({{ onAction }}) {{
                         value: formData.name,
                         onChange: (e) => handleInputChange('name', e.target.value),
                         placeholder: 'Enter your full name',
+                        disabled: isLoading,
                         style: {{
                             width: '100%',
                             padding: '12px 16px',
                             border: '1px solid rgba(100, 100, 105, 0.6)',
                             borderRadius: '8px',
-                            background: 'rgba(80, 80, 85, 0.8)',
-                            color: '#ffffff',
+                            background: isLoading ? 'rgba(60, 60, 65, 0.6)' : 'rgba(80, 80, 85, 0.8)',
+                            color: isLoading ? 'rgba(255, 255, 255, 0.5)' : '#ffffff',
                             fontSize: '1rem',
-                            fontFamily: 'inherit'
+                            fontFamily: 'inherit',
+                            opacity: isLoading ? '0.6' : '1',
+                            cursor: isLoading ? 'not-allowed' : 'text'
                         }}
                     }})
                 ]),
@@ -2693,15 +3045,18 @@ function CheckoutForm({{ onAction }}) {{
                         value: formData.email,
                         onChange: (e) => handleInputChange('email', e.target.value),
                         placeholder: 'Enter your email address',
+                        disabled: isLoading,
                         style: {{
                             width: '100%',
                             padding: '12px 16px',
                             border: '1px solid rgba(100, 100, 105, 0.6)',
                             borderRadius: '8px',
-                            background: 'rgba(80, 80, 85, 0.8)',
-                            color: '#ffffff',
+                            background: isLoading ? 'rgba(60, 60, 65, 0.6)' : 'rgba(80, 80, 85, 0.8)',
+                            color: isLoading ? 'rgba(255, 255, 255, 0.5)' : '#ffffff',
                             fontSize: '1rem',
-                            fontFamily: 'inherit'
+                            fontFamily: 'inherit',
+                            opacity: isLoading ? '0.6' : '1',
+                            cursor: isLoading ? 'not-allowed' : 'text'
                         }}
                     }})
                 ]),
@@ -2726,17 +3081,20 @@ function CheckoutForm({{ onAction }}) {{
                         value: formData.address,
                         onChange: (e) => handleInputChange('address', e.target.value),
                         placeholder: 'Enter your shipping address',
+                        disabled: isLoading,
                         style: {{
                             width: '100%',
                             padding: '12px 16px',
                             border: '1px solid rgba(100, 100, 105, 0.6)',
                             borderRadius: '8px',
-                            background: 'rgba(80, 80, 85, 0.8)',
-                            color: '#ffffff',
+                            background: isLoading ? 'rgba(60, 60, 65, 0.6)' : 'rgba(80, 80, 85, 0.8)',
+                            color: isLoading ? 'rgba(255, 255, 255, 0.5)' : '#ffffff',
                             fontSize: '1rem',
                             fontFamily: 'inherit',
                             minHeight: '80px',
-                            resize: 'vertical'
+                            resize: 'vertical',
+                            opacity: isLoading ? '0.6' : '1',
+                            cursor: isLoading ? 'not-allowed' : 'text'
                         }}
                     }})
                 ]),
@@ -2760,15 +3118,18 @@ function CheckoutForm({{ onAction }}) {{
                         key: 'input',
                         value: formData.payment_method,
                         onChange: (e) => handleInputChange('payment_method', e.target.value),
+                        disabled: isLoading,
                         style: {{
                             width: '100%',
                             padding: '12px 16px',
                             border: '1px solid rgba(100, 100, 105, 0.6)',
                             borderRadius: '8px',
-                            background: 'rgba(80, 80, 85, 0.8)',
-                            color: '#ffffff',
+                            background: isLoading ? 'rgba(60, 60, 65, 0.6)' : 'rgba(80, 80, 85, 0.8)',
+                            color: isLoading ? 'rgba(255, 255, 255, 0.5)' : '#ffffff',
                             fontSize: '1rem',
-                            fontFamily: 'inherit'
+                            fontFamily: 'inherit',
+                            opacity: isLoading ? '0.6' : '1',
+                            cursor: isLoading ? 'not-allowed' : 'pointer'
                         }}
                     }}, [
                         React.createElement('option', {{ key: 'cc', value: 'credit_card' }}, 'Credit Card'),
@@ -2789,49 +3150,90 @@ function CheckoutForm({{ onAction }}) {{
                 React.createElement('button', {{
                     key: 'back',
                     onClick: handleBackToCart,
+                    disabled: isLoading,
                     style: {{
                         flex: '1',
                         padding: '14px 20px',
                         border: '1px solid rgba(100, 100, 105, 0.8)',
                         borderRadius: '8px',
-                        background: 'rgba(100, 100, 105, 0.8)',
-                        color: 'rgba(255, 255, 255, 0.9)',
+                        background: isLoading ? 'rgba(70, 70, 75, 0.6)' : 'rgba(100, 100, 105, 0.8)',
+                        color: isLoading ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.9)',
                         fontSize: '0.9rem',
                         fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                        cursor: isLoading ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        opacity: isLoading ? '0.6' : '1'
                     }}
                 }}, '← Back to Cart'),
                 
                 React.createElement('button', {{
                     key: 'submit',
                     onClick: handleSubmit,
+                    disabled: isLoading,
                     style: {{
                         flex: '1',
                         padding: '14px 20px',
-                        border: '1px solid rgba(22, 163, 74, 0.3)',
+                        border: `1px solid rgba(22, 163, 74, ${{isLoading ? '0.2' : '0.3'}})`,
                         borderRadius: '8px',
-                        background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
+                        background: isLoading 
+                            ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)'
+                            : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
                         color: 'white',
                         fontSize: '0.9rem',
                         fontWeight: '600',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 12px rgba(22, 163, 74, 0.25)',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                        cursor: isLoading ? 'not-allowed' : 'pointer',
+                        boxShadow: isLoading 
+                            ? '0 4px 12px rgba(107, 114, 128, 0.25)'
+                            : '0 4px 12px rgba(22, 163, 74, 0.25)',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        opacity: isLoading ? '0.8' : '1'
                     }},
                     onMouseEnter: (e) => {{
-                        e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                        e.target.style.boxShadow = '0 8px 20px rgba(22, 163, 74, 0.35)';
+                        if (!isLoading) {{
+                            e.target.style.transform = 'translateY(-2px) scale(1.02)';
+                            e.target.style.boxShadow = '0 8px 20px rgba(22, 163, 74, 0.35)';
+                        }}
                     }},
                     onMouseLeave: (e) => {{
-                        e.target.style.transform = 'translateY(0) scale(1)';
-                        e.target.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.25)';
+                        if (!isLoading) {{
+                            e.target.style.transform = 'translateY(0) scale(1)';
+                            e.target.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.25)';
+                        }}
                     }}
-                }}, 'Place Order')
+                }}, [
+                    isLoading && React.createElement('div', {{
+                        key: 'spinner',
+                        style: {{
+                            width: '16px',
+                            height: '16px',
+                            border: '2px solid rgba(255, 255, 255, 0.3)',
+                            borderTop: '2px solid white',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite'
+                        }}
+                    }}),
+                    React.createElement('span', {{
+                        key: 'text'
+                    }}, isLoading ? 'Processing...' : 'Place Order')
+                ])
             ])
         ])
     ]);
 }}
+
+// Add spinner animation CSS
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes spin {{
+        0% {{ transform: rotate(0deg); }}
+        100% {{ transform: rotate(360deg); }}
+    }}
+`;
+document.head.appendChild(style);
 """
 
     ui_resource = create_ui_resource(

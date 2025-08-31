@@ -31,7 +31,7 @@ from dotenv import load_dotenv
 load_dotenv(".env")
 
 # Import Nekuda service
-from nekuda_service import nekuda_service, CheckoutRequest, NekudaPaymentData
+from nekuda_service import get_nekuda_service, CheckoutRequest, NekudaPaymentData, NekudaCheckoutRequest, NekudaCheckoutResponse
 
 # Quote service types (now from MCP server)
 from dataclasses import dataclass
@@ -335,6 +335,7 @@ def setup_logging():
     return logging.getLogger("backend")
 
 logger = setup_logging()
+
 
 # Initialize MCP Quote Client
 mcp_quote_client = MCPQuoteClient(settings.mcp_server_url)
@@ -1090,7 +1091,9 @@ async def atomic_nekuda_checkout(checkout_request: AtomicCheckoutRequest):
     This represents the user's explicit intent to purchase when they click checkout
     """
     try:
-        logger.debug(f"Starting atomic checkout for user {checkout_request.user_id}")
+        user_id = checkout_request.user_id
+        
+        logger.debug(f"Starting atomic checkout for user {user_id}")
         logger.debug(f"Cart total: ${checkout_request.cart_total}, Items: {len(checkout_request.cart_items)}")
         logger.debug(f"Checkout context: {checkout_request.checkout_context}")
         
@@ -1113,8 +1116,8 @@ async def atomic_nekuda_checkout(checkout_request: AtomicCheckoutRequest):
             logger.debug("Quote validation successful")
         
         # Create mandate with checkout context immediately
-        mandate_id = await nekuda_service.create_mandate_for_checkout(
-            user_id=checkout_request.user_id,
+        mandate_id = await get_nekuda_service().create_mandate_for_checkout(
+            user_id=user_id,
             cart_total=checkout_request.cart_total,
             product_name=checkout_request.product_summary,
             currency=checkout_request.currency,
@@ -1125,8 +1128,8 @@ async def atomic_nekuda_checkout(checkout_request: AtomicCheckoutRequest):
         logger.debug(f"Created mandate {mandate_id} for checkout action")
         
         # Immediately get payment credentials using the mandate
-        payment_data = await nekuda_service.get_payment_credentials(
-            user_id=checkout_request.user_id,
+        payment_data = await get_nekuda_service().get_payment_credentials(
+            user_id=user_id,
             mandate_id=mandate_id
         )
         
@@ -1158,7 +1161,7 @@ async def get_nekuda_payment(checkout_request: CheckoutRequest):
     This endpoint is kept for backward compatibility
     """
     try:
-        payment_data = await nekuda_service.complete_checkout_flow(checkout_request)
+        payment_data = await get_nekuda_service().complete_checkout_flow(checkout_request)
         
         return {
             "success": True,
@@ -1181,7 +1184,7 @@ async def get_nekuda_payment(checkout_request: CheckoutRequest):
 async def get_nekuda_wallet_status(userId: str):
     """Check if user has stored payment methods in Nekuda wallet"""
     try:
-        has_payment_methods = await nekuda_service.has_stored_payment_methods(userId)
+        has_payment_methods = await get_nekuda_service().has_stored_payment_methods(userId)
         return {
             "success": True,
             "hasPaymentMethods": has_payment_methods,
@@ -1198,7 +1201,7 @@ async def get_nekuda_wallet_status(userId: str):
 async def get_nekuda_billing_details(userId: str):
     """Get billing details from Nekuda wallet for address prefill"""
     try:
-        billing_details = await nekuda_service.get_billing_details(userId)
+        billing_details = await get_nekuda_service().get_billing_details(userId)
         
         if not billing_details:
             raise HTTPException(
@@ -1221,14 +1224,14 @@ async def get_nekuda_billing_details(userId: str):
 
 
 @app.post("/api/initialize-nekuda-collection") 
-async def initialize_nekuda_collection(request: Dict[str, Any]):
+async def initialize_nekuda_collection(request_data: Dict[str, Any]):
     """Initialize Nekuda payment collection for adding new cards"""
     try:
-        user_id = request.get("userId")
+        user_id = request_data.get("userId")
         if not user_id:
             raise HTTPException(status_code=400, detail="userId is required")
-        
-        collection_data = await nekuda_service.initialize_payment_collection(user_id)
+            
+        collection_data = await get_nekuda_service().initialize_payment_collection(user_id)
         return {
             "success": True,
             **collection_data
@@ -1240,15 +1243,15 @@ async def initialize_nekuda_collection(request: Dict[str, Any]):
         )
 
 @app.post("/api/nekuda-payment-added")
-async def mark_payment_added(request: Dict[str, Any]):
+async def mark_payment_added(request_data: Dict[str, Any]):
     """Mark that user has successfully added a payment method"""
     try:
-        user_id = request.get("userId")
+        user_id = request_data.get("userId")
         if not user_id:
             raise HTTPException(status_code=400, detail="userId is required")
         
         # Mark user as having payment methods
-        nekuda_service.add_payment_method_for_user(user_id)
+        get_nekuda_service().add_payment_method_for_user(user_id)
         
         return {
             "success": True,
@@ -1259,6 +1262,120 @@ async def mark_payment_added(request: Dict[str, Any]):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to mark payment method: {str(e)}"
+        )
+
+
+async def process_merchant_payment(
+    payment_credentials, 
+    amount: float, 
+    currency: str, 
+    order_details: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Process payment with merchant API using Nekuda credentials
+    This is a mock implementation - replace with actual payment processor integration
+    """
+    try:
+        # Mock successful payment processing
+        order_id = f"order_{uuid.uuid4().hex[:8]}"
+        
+        logger.info(f"Processing payment: ${amount} {currency} for order {order_id}")
+        logger.info(f"Using card ending in {payment_credentials.pan[-4:]}")
+        
+        # In real implementation, you would:
+        # 1. Call your payment processor API
+        # 2. Use the payment_credentials (PAN, expiry, CVV, etc.)
+        # 3. Handle payment processor responses
+        # 4. Return actual success/failure status
+        
+        return {
+            "success": True,
+            "order_id": order_id,
+            "transaction_id": f"txn_{uuid.uuid4().hex[:8]}",
+            "amount_charged": amount,
+            "currency": currency
+        }
+        
+    except Exception as e:
+        logger.error(f"Payment processing failed: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "order_id": "",
+            "transaction_id": ""
+        }
+
+
+@app.post("/api/nekuda-checkout", response_model=NekudaCheckoutResponse)
+async def nekuda_checkout(checkout_request: NekudaCheckoutRequest):
+    """
+    Complete Nekuda checkout flow:
+    1. Create mandate with cart details
+    2. Get reveal token for payment credentials  
+    3. Reveal actual card details
+    4. Return payment credentials to merchant for processing
+    """
+    try:
+        user_id = checkout_request.user_id
+        
+        logger.info(f"Starting Nekuda checkout for user {user_id}")
+        logger.info(f"Cart total: ${checkout_request.cart_total} {checkout_request.currency}")
+        
+        # Validate user has payment methods
+        has_payment_methods = await get_nekuda_service().validate_user_wallet(user_id)
+        if not has_payment_methods:
+            raise HTTPException(
+                status_code=400, 
+                detail="User has no stored payment methods"
+            )
+        
+        # Create mandate for checkout
+        mandate_id = await get_nekuda_service().create_checkout_mandate(
+            user_id=user_id,
+            cart_data={
+                "items": checkout_request.cart_items,
+                "total": checkout_request.cart_total,
+                "currency": checkout_request.currency,
+                "product_summary": checkout_request.product_summary
+            }
+        )
+        
+        # Get payment credentials
+        payment_credentials = await get_nekuda_service().get_payment_credentials_for_checkout(
+            user_id=user_id,
+            mandate_id=mandate_id
+        )
+        
+        # Return payment credentials to MCP server for merchant processing
+        logger.info(f"Returning payment credentials for mandate {mandate_id}")
+        return NekudaCheckoutResponse(
+            success=True,
+            mandate_id=mandate_id,
+            payment_credentials={
+                "pan": payment_credentials.pan,
+                "expiry_month": payment_credentials.expiry_month,
+                "expiry_year": payment_credentials.expiry_year,
+                "cvv": payment_credentials.cvv,
+                "cardholder_name": payment_credentials.cardholder_name,
+                "token": payment_credentials.token
+            },
+            currency=checkout_request.currency,
+            timestamp=datetime.utcnow().isoformat(),
+            message="Payment credentials retrieved successfully"
+        )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Checkout failed: {e}")
+        return NekudaCheckoutResponse(
+            success=False,
+            mandate_id=mandate_id if 'mandate_id' in locals() else "",
+            payment_credentials=None,
+            currency=checkout_request.currency,
+            timestamp=datetime.utcnow().isoformat(),
+            message="Checkout failed",
+            error_details=str(e)
         )
 
 
