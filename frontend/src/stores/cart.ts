@@ -3,6 +3,46 @@ import { ref, computed } from 'vue'
 import type { CartItem } from '@/types'
 import { chatApi } from '@/utils/api'
 import { cartOperationsQueue } from '@/utils/asyncQueue'
+import axios from 'axios'
+
+// Quote management types
+interface QuoteShippingAddress {
+  name?: string
+  phone?: string
+  address_line1?: string
+  address_line2?: string
+  city?: string
+  state?: string
+  postal_code?: string
+  country?: string
+}
+
+interface QuoteShippingOption {
+  id: string
+  label: string
+  amount: string
+  selected: boolean
+}
+
+interface QuoteDiscount {
+  code: string
+  amount: string
+}
+
+interface Quote {
+  quote_session_id: string
+  version: number
+  status: 'provisional' | 'partial' | 'final'
+  address_confidence: 'none' | 'partial' | 'verified'
+  shipping_options: QuoteShippingOption[]
+  tax: string
+  discounts: QuoteDiscount[]
+  total: string
+  currency: string
+  expires_at: string
+  requires_address: boolean
+  warnings: string[]
+}
 
 export const useCartStore = defineStore('cart', () => {
   // Product icon and color mapping (NBA jerseys)
@@ -23,6 +63,13 @@ export const useCartStore = defineStore('cart', () => {
   // Optimistic state management
   const backupItems = ref<CartItem[]>([])
   const pendingOperations = ref<Set<string>>(new Set())
+  
+  // Quote management state
+  const currentQuote = ref<Quote | null>(null)
+  const quoteSessionId = ref<string>('')
+  const shippingAddress = ref<QuoteShippingAddress | null>(null)
+  const isLoadingQuote = ref(false)
+  const quoteError = ref<string | null>(null)
   
   // Simple debounced sync for demo
   let syncTimeout: NodeJS.Timeout | null = null
@@ -46,6 +93,31 @@ export const useCartStore = defineStore('cart', () => {
 
   const isEmpty = computed(() => {
     return items.value.length === 0
+  })
+
+  // Quote computed properties
+  const finalTotal = computed(() => {
+    if (currentQuote.value && currentQuote.value.status === 'final') {
+      return parseFloat(currentQuote.value.total)
+    }
+    return total.value // Fallback to cart total
+  })
+
+  const displayTotal = computed(() => {
+    return currentQuote.value?.total ? parseFloat(currentQuote.value.total) : total.value
+  })
+
+  const tax = computed(() => {
+    return currentQuote.value?.tax ? parseFloat(currentQuote.value.tax) : 0
+  })
+
+  const shipping = computed(() => {
+    const selectedShipping = currentQuote.value?.shipping_options.find(opt => opt.selected)
+    return selectedShipping ? parseFloat(selectedShipping.amount) : 0
+  })
+
+  const isPriceEstimated = computed(() => {
+    return !currentQuote.value || currentQuote.value.status !== 'final'
   })
 
   // Initialize cart from server on store creation
@@ -304,6 +376,179 @@ export const useCartStore = defineStore('cart', () => {
     }, 500)
   }
 
+  // Quote management methods
+  const generateQuoteSessionId = () => {
+    if (!quoteSessionId.value) {
+      quoteSessionId.value = `quote_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    }
+    return quoteSessionId.value
+  }
+
+  const loadBillingDetailsFromWallet = async (userId: string) => {
+    try {
+      console.log(`🔄 Attempting to load billing details for user: ${userId}`)
+      const response = await axios.get(`/api/nekuda-billing-details?userId=${userId}`)
+      if (response.data.success && response.data.billing_details) {
+        const billing = response.data.billing_details
+        shippingAddress.value = {
+          name: billing.card_holder,
+          phone: billing.phone_number,
+          address_line1: billing.billing_address,
+          city: billing.city,
+          state: billing.state,
+          postal_code: billing.zip_code,
+          country: 'US'
+        }
+        console.log('🏠 Loaded billing details from wallet:', shippingAddress.value)
+        return shippingAddress.value
+      }
+    } catch (error) {
+      console.log('⚠️ Could not load billing details from wallet:', error.response?.status, error.response?.data)
+      if (error.response?.status === 404) {
+        console.log('💡 No billing details found - this is normal for new users')
+      }
+    }
+    return null
+  }
+
+  const updateQuote = async (userId?: string) => {
+    if (isEmpty.value) {
+      currentQuote.value = null
+      return
+    }
+
+    try {
+      isLoadingQuote.value = true
+      quoteError.value = null
+      
+      const sessionId = generateQuoteSessionId()
+      
+      // Try to load billing details if we don't have an address and user has wallet
+      if (!shippingAddress.value && userId) {
+        await loadBillingDetailsFromWallet(userId)
+      }
+      
+      const cartItems = items.value.map(item => ({
+        sku: item.productId,
+        qty: item.quantity,
+        unit_price: item.price.toString(),
+        name: item.name
+      }))
+
+      const quoteRequest = {
+        quote_session_id: sessionId,
+        cart: {
+          currency: 'USD',
+          items: cartItems
+        },
+        shipping_address: shippingAddress.value,
+        estimation_hints: {
+          fallback_country: 'US',
+          fallback_state: 'CA' // Default to California for demo
+        },
+        client_context: {
+          user_id: userId || 'anonymous',
+          wallet_present: !!shippingAddress.value
+        }
+      }
+
+      console.log('📊 Updating quote:', quoteRequest)
+      
+      const response = await axios.post('/api/quotes/create-or-update', quoteRequest)
+      currentQuote.value = response.data
+      
+      console.log(`💰 Quote updated: $${currentQuote.value?.total} (${currentQuote.value?.status})`)
+      
+    } catch (error) {
+      console.error('Failed to update quote:', error)
+      quoteError.value = 'Failed to calculate pricing'
+    } finally {
+      isLoadingQuote.value = false
+    }
+  }
+
+  const updateShippingAddress = async (address: QuoteShippingAddress, userId?: string) => {
+    shippingAddress.value = address
+    await updateQuote(userId)
+  }
+
+  const selectShippingOption = async (shippingOptionId: string, userId?: string) => {
+    if (!currentQuote.value) return
+    
+    try {
+      console.log(`Selecting shipping option: ${shippingOptionId}`)
+      
+      // Optimistic update - immediately update UI for better UX
+      const currentOptions = [...currentQuote.value.shipping_options]
+      currentOptions.forEach(opt => {
+        opt.selected = opt.id === shippingOptionId
+      })
+      currentQuote.value.shipping_options = currentOptions
+      
+      // Debounced loading - only show loading after 500ms delay
+      let showLoading = false
+      const loadingTimeout = setTimeout(() => {
+        showLoading = true
+        isLoadingQuote.value = true
+      }, 500)
+      
+      const quoteRequest = {
+        quote_session_id: currentQuote.value.quote_session_id,
+        cart: {
+          currency: 'USD',
+          items: items.value.map(item => ({
+            sku: item.productId,
+            qty: item.quantity,
+            unit_price: item.price.toString(),
+            name: item.name
+          }))
+        },
+        shipping_address: shippingAddress.value,
+        selected_shipping_id: shippingOptionId,
+        client_context: {
+          user_id: userId || 'anonymous',
+          wallet_present: !!shippingAddress.value
+        }
+      }
+
+      console.log('Sending quote request with shipping selection:', quoteRequest)
+      const response = await axios.post('/api/quotes/create-or-update', quoteRequest)
+      
+      // Clear the timeout since request completed
+      clearTimeout(loadingTimeout)
+      
+      // Update with server response
+      currentQuote.value = response.data
+      console.log('Updated quote after shipping selection:', currentQuote.value)
+      
+    } catch (error) {
+      console.error('Failed to select shipping option:', error)
+      // Revert optimistic update on error
+      if (currentQuote.value) {
+        const response = await axios.post('/api/quotes/create-or-update', {
+          quote_session_id: currentQuote.value.quote_session_id,
+          cart: {
+            currency: 'USD',
+            items: items.value.map(item => ({
+              sku: item.productId,
+              qty: item.quantity,
+              unit_price: item.price.toString(),
+              name: item.name
+            }))
+          },
+          shipping_address: shippingAddress.value,
+          client_context: {
+            user_id: userId || 'anonymous',
+            wallet_present: !!shippingAddress.value
+          }
+        })
+        currentQuote.value = response.data
+      }
+    } finally {
+      isLoadingQuote.value = false
+    }
+  }
+
   // Note: Cart initialization is handled by chat store to ensure proper session management
 
   return {
@@ -312,10 +557,24 @@ export const useCartStore = defineStore('cart', () => {
     isOpen,
     isAutoOpening,
     pendingOperations,
+    
+    // Quote state
+    currentQuote,
+    quoteSessionId,
+    shippingAddress,
+    isLoadingQuote,
+    quoteError,
+    
     // Computed
     itemCount,
     total,
     isEmpty,
+    finalTotal,
+    displayTotal,
+    tax,
+    shipping,
+    isPriceEstimated,
+    
     // Actions
     initializeCart,
     syncCart,
@@ -327,6 +586,12 @@ export const useCartStore = defineStore('cart', () => {
     openCart,
     openCartWithAnimation,
     closeCart,
-    addFromMCPAction
+    addFromMCPAction,
+    
+    // Quote actions
+    updateQuote,
+    updateShippingAddress,
+    selectShippingOption,
+    loadBillingDetailsFromWallet
   }
 })

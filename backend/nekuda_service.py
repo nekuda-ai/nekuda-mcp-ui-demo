@@ -1,5 +1,5 @@
 """
-Nekuda Wallet Integration Service
+nekuda Wallet Integration Service
 
 This module handles all interactions with the Nekuda SDK including:
 - Mandate creation for purchases
@@ -227,6 +227,52 @@ class NekudaService:
         logger.debug(f"Marking user {user_id} as having payment methods")
         self._users_with_payment_methods.add(user_id)
         logger.debug(f"Updated users with payment methods: {list(self._users_with_payment_methods)}")
+    
+    async def get_billing_details(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get billing details from Nekuda wallet for address prefill
+        Returns non-sensitive billing information for shipping/contact purposes
+        """
+        try:
+            user_context = self.get_user_context(user_id)
+            
+            logger.debug(f"Retrieving billing details for user {user_id}")
+            
+            # For demo purposes, let's provide mock billing details for any user
+            # to demonstrate the address-aware pricing flow
+            # In production, check if user has payment methods first
+            
+            # Mock billing details for demo - show different addresses for different users
+            user_demo_data = {
+                "user_id": user_id,
+                "card_holder": "Demo User",
+                "phone_number": "+1-555-0123",
+                "billing_address": "123 Main Street",
+                "city": "New York", 
+                "state": "NY",
+                "zip_code": "10001"
+            }
+            
+            # Provide different demo addresses to show pricing variations
+            if "california" in user_id.lower() or user_id.endswith("ca"):
+                user_demo_data.update({
+                    "city": "San Francisco",
+                    "state": "CA", 
+                    "zip_code": "94102"
+                })
+            elif "texas" in user_id.lower() or user_id.endswith("tx"):
+                user_demo_data.update({
+                    "city": "Austin",
+                    "state": "TX",
+                    "zip_code": "73301"
+                })
+            
+            logger.debug(f"Retrieved mock billing details for user {user_id}: {user_demo_data['city']}, {user_demo_data['state']}")
+            return user_demo_data
+            
+        except Exception as e:
+            logger.error(f"Error retrieving billing details for user {user_id}: {e}")
+            return None
     
     async def initialize_payment_collection(self, user_id: str) -> Dict[str, Any]:
         """

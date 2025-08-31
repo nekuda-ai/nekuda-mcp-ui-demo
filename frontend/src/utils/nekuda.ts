@@ -1,4 +1,4 @@
-// Nekuda Wallet Integration Utilities
+// nekuda Wallet Integration Utilities
 // This module provides Vue-compatible methods to interact with the Nekuda backend
 
 import axios from 'axios'
@@ -39,7 +39,9 @@ export interface NekudaMandate {
 export const atomicNekudaCheckout = async (
   userId: string,
   cartTotal: number,
-  cartItems: any[]
+  cartItems: any[],
+  quoteSessionId?: string,
+  quoteVersion?: number
 ): Promise<NekudaPaymentData & { mandate_id: string; checkout_context: string }> => {
   try {
     const response = await axios.post('/api/atomic-nekuda-checkout', {
@@ -48,7 +50,9 @@ export const atomicNekudaCheckout = async (
       cart_items: cartItems,
       product_summary: `Cart Purchase (${cartItems.length} items)`,
       currency: 'USD',
-      checkout_context: 'user_clicked_checkout_button'
+      checkout_context: 'user_clicked_checkout_button',
+      quote_session_id: quoteSessionId,
+      quote_version: quoteVersion
     })
     
     return response.data

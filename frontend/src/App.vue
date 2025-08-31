@@ -22,7 +22,7 @@
         
         <!-- Mobile Action Buttons -->
         <div class="md:hidden flex items-center space-x-2">
-          <!-- Mobile Nekuda Wallet Button -->
+          <!-- Mobile nekuda Wallet Button -->
           <NekudaWalletButton />
           
           <!-- Mobile Menu Button -->
@@ -38,7 +38,7 @@
 
         <!-- Desktop Action Buttons -->
         <div class="hidden md:flex items-center space-x-3">
-          <!-- Nekuda Wallet Button -->
+          <!-- nekuda Wallet Button -->
           <NekudaWalletButton />
           
           <!-- Cart Toggle Button -->
@@ -154,7 +154,7 @@
           </button>
         </div>
         <div class="text-gray-300 space-y-3">
-          <p> This is a demo showcasing the integration of a headless store using <a href="https://github.com/idosal/mcp-ui" target="_blank" rel="noopener noreferrer" class="text-[#00D2FF] underline underline-offset-2 hover:text-[#00B8E6] transition-colors">MCP-UI ↗</a> with Nekuda Wallet.</p>
+          <p> This is a demo showcasing the integration of a headless store using <a href="https://github.com/idosal/mcp-ui" target="_blank" rel="noopener noreferrer" class="text-[#00D2FF] underline underline-offset-2 hover:text-[#00B8E6] transition-colors">MCP-UI ↗</a> with nekuda Wallet.</p>
           <p class="mt-1">Features:</p>
           <ul class="list-disc list-inside space-y-1 ml-4">
             <li>Headless store with MCP-UI components</li>

@@ -34,7 +34,7 @@
       </div>
 
       <!-- Cart Content -->
-      <div class="flex-1 flex flex-col">
+      <div class="flex-1 overflow-y-auto scrollbar-thin">
         <!-- Empty State -->
         <div v-if="cartStore.isEmpty" class="flex-1 flex items-center justify-center p-8">
           <div class="text-center">
@@ -54,8 +54,9 @@
           </div>
         </div>
 
-        <!-- Cart Items -->
-        <div v-else class="flex-1 overflow-y-auto scrollbar-thin">
+        <!-- Cart Items and Summary (when items exist) -->
+        <div v-else>
+          <!-- Cart Items -->
           <div class="p-4 sm:p-6 space-y-4">
             <CartItem 
               v-for="item in cartStore.items"
@@ -65,28 +66,138 @@
               @remove="removeItem"
             />
           </div>
-        </div>
 
-        <!-- Cart Summary (when items exist) -->
-        <div v-if="!cartStore.isEmpty" class="border-t border-[#1e1e20] p-4 sm:p-6 space-y-4">
+          <!-- Cart Summary -->
+          <div class="border-t border-[#1e1e20] p-4 sm:p-6 space-y-4 bg-[#111113]">
           
-          <div class="space-y-3">
+          <!-- Quote Loading State -->
+          <div v-if="cartStore.isLoadingQuote" class="flex items-center justify-center py-4">
+            <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+            <span class="ml-3 text-sm text-white/60">Calculating pricing...</span>
+          </div>
+          
+          <!-- Quote Error State -->
+          <div v-else-if="cartStore.quoteError" class="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+            <div class="flex items-center">
+              <svg class="w-4 h-4 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span class="text-sm text-red-400">{{ cartStore.quoteError }}</span>
+            </div>
+          </div>
+          
+          <!-- Pricing Breakdown -->
+          <div v-else class="space-y-3">
+            <!-- Status Badge -->
+            <div v-if="cartStore.currentQuote" class="flex items-center justify-between mb-3">
+              <div class="flex items-center space-x-2">
+                <div 
+                  class="px-2 py-1 rounded-full text-xs font-medium"
+                  :class="{
+                    'bg-green-500/20 text-green-400': cartStore.currentQuote.status === 'final',
+                    'bg-yellow-500/20 text-yellow-400': cartStore.currentQuote.status === 'partial',
+                    'bg-blue-500/20 text-blue-400': cartStore.currentQuote.status === 'provisional'
+                  }"
+                >
+                  {{ cartStore.isPriceEstimated ? 'Estimated' : 'Final' }} Pricing
+                </div>
+                <div 
+                  v-if="cartStore.currentQuote.address_confidence === 'verified'"
+                  class="text-green-400"
+                  title="Address verified"
+                >
+                  <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Line Items -->
             <div class="flex justify-between text-sm text-white/60">
               <span>Subtotal ({{ cartStore.itemCount }} items)</span>
               <span class="font-medium text-white">${{ cartStore.total.toFixed(2) }}</span>
             </div>
-            <div class="flex justify-between text-sm text-white/60">
-              <span>Shipping</span>
-              <span class="font-medium text-[#00D2FF]">Free</span>
+            
+            <!-- Shipping Options -->
+            <div class="text-sm text-white/60">
+              <div class="flex justify-between">
+                <span>Shipping</span>
+                <div class="text-right">
+                  <div v-if="cartStore.shipping > 0" class="font-medium text-white">
+                    ${{ cartStore.shipping.toFixed(2) }}
+                  </div>
+                  <div v-else class="font-medium text-[#00D2FF]">
+                    Free
+                  </div>
+                </div>
+              </div>
+              <div v-if="cartStore.currentQuote?.shipping_options" class="mt-2 ml-0">
+                <div class="relative">
+                  <select 
+                    v-if="cartStore.currentQuote.shipping_options.length > 1"
+                    @change="selectShippingOption"
+                    :value="cartStore.currentQuote.shipping_options.find(opt => opt.selected)?.id || cartStore.currentQuote.shipping_options[0]?.id"
+                    :disabled="cartStore.isLoadingQuote"
+                    class="bg-[#1e1e20] border border-[#2a2a2d] rounded text-xs text-white px-2 py-1 w-full focus:border-[#00D2FF] focus:outline-none transition-opacity duration-200"
+                    :class="{ 'opacity-60': cartStore.isLoadingQuote }"
+                  >
+                    <option 
+                      v-for="option in cartStore.currentQuote.shipping_options"
+                      :key="option.id"
+                      :value="option.id"
+                    >
+                      {{ option.label }} - ${{ option.amount }}
+                    </option>
+                  </select>
+                  <!-- Subtle loading indicator -->
+                  <div 
+                    v-if="cartStore.isLoadingQuote" 
+                    class="absolute right-2 top-1/2 transform -translate-y-1/2"
+                  >
+                    <div class="w-3 h-3 border-2 border-[#00D2FF] border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                </div>
+                <div v-if="!cartStore.currentQuote.shipping_options.length > 1 && cartStore.currentQuote.shipping_options[0]" class="text-xs text-white/40 mt-1">
+                  {{ cartStore.currentQuote.shipping_options[0].label }}
+                </div>
+              </div>
             </div>
+            
+            <!-- Tax -->
             <div class="flex justify-between text-sm text-white/60">
               <span>Tax</span>
-              <span class="font-medium text-white">${{ (cartStore.total * 0.08).toFixed(2) }}</span>
+              <span class="font-medium text-white">${{ cartStore.tax.toFixed(2) }}</span>
             </div>
+            
+            <!-- Discounts -->
+            <div v-if="cartStore.currentQuote?.discounts?.length" class="space-y-1">
+              <div 
+                v-for="discount in cartStore.currentQuote.discounts" 
+                :key="discount.code"
+                class="flex justify-between text-sm text-green-400"
+              >
+                <span>{{ discount.code }}</span>
+                <span>-${{ discount.amount }}</span>
+              </div>
+            </div>
+            
+            <!-- Total -->
             <div class="border-t border-[#2a2a2d] pt-3">
               <div class="flex justify-between text-lg font-semibold text-white">
                 <span>Total</span>
-                <span class="text-gradient-primary">${{ (cartStore.total * 1.08).toFixed(2) }}</span>
+                <span class="text-gradient-primary">${{ cartStore.displayTotal.toFixed(2) }}</span>
+              </div>
+            </div>
+            
+            <!-- Warnings -->
+            <div v-if="cartStore.currentQuote?.warnings?.length" class="mt-2">
+              <div 
+                v-for="warning in cartStore.currentQuote.warnings"
+                :key="warning"
+                class="text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded px-2 py-1 mb-1"
+              >
+                ⚠️ {{ warning }}
               </div>
             </div>
           </div>
@@ -116,6 +227,7 @@
               Clear all items
             </button>
           </div>
+          </div>
         </div>
       </div>
     </div>
@@ -137,8 +249,27 @@ const chatStore = useChatStore()
 watch(() => cartStore.isOpen, async (open) => {
   if (open) {
     await cartStore.syncCart(chatStore.sessionId)
+    // Update quote when cart opens
+    if (!cartStore.isEmpty) {
+      await cartStore.updateQuote(getUserId())
+    }
   }
 })
+
+// Update quote when cart items change
+watch(() => cartStore.items, async () => {
+  if (!cartStore.isEmpty && cartStore.isOpen) {
+    await cartStore.updateQuote(getUserId())
+  }
+}, { deep: true })
+
+// Handle shipping option selection
+const selectShippingOption = async (event: Event) => {
+  const target = event.target as HTMLSelectElement
+  const selectedOptionId = target.value
+  console.log('Selected shipping option:', selectedOptionId)
+  await cartStore.selectShippingOption(selectedOptionId, getUserId())
+}
 
 onMounted(async () => {
   await cartStore.syncCart(chatStore.sessionId)
@@ -181,13 +312,27 @@ const proceedToCheckout = async () => {
       alert('Please add a payment method to your Nekuda wallet before checkout.\n\nClick the Wallet button in the header to add a payment method.')
       return
     }
+
+    // Step 2: Ensure we have a final quote for checkout
+    if (!cartStore.currentQuote || cartStore.currentQuote.status !== 'final') {
+      console.log('Quote not final, updating quote before checkout...')
+      await cartStore.updateQuote(userId)
+      
+      // Check again after update
+      if (!cartStore.currentQuote || cartStore.currentQuote.status !== 'final') {
+        alert('Unable to finalize pricing. Please add a complete shipping address.')
+        return
+      }
+    }
     
-    // Step 2: Atomic checkout - create mandate and get payment credentials when user clicks checkout
+    // Step 3: Atomic checkout - create mandate and get payment credentials when user clicks checkout
     console.log('Creating mandate and retrieving payment credentials...')
     const atomicCheckoutData = await atomicNekudaCheckout(
       userId,
-      cartStore.total,
-      cartStore.items
+      cartStore.finalTotal, // Use final total from quote
+      cartStore.items,
+      cartStore.currentQuote?.quote_session_id,
+      cartStore.currentQuote?.version
     )
     
     console.log('Atomic checkout completed:', {
@@ -236,10 +381,27 @@ const proceedToCheckout = async () => {
   transition: transform 0.3s ease-in-out;
 }
 
-/* Ensure proper scrolling for cart items */
-.cart-items-container {
+/* Enhanced scrollbar styles for dark theme */
+.scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: rgb(203 213 225) transparent;
+  scrollbar-color: #2a2a2d #111113;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: #111113;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #2a2a2d;
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: #00D2FF;
 }
 
 .cart-items-container::-webkit-scrollbar {
