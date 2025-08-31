@@ -1280,7 +1280,7 @@ async def process_merchant_payment(
         order_id = f"order_{uuid.uuid4().hex[:8]}"
         
         logger.info(f"Processing payment: ${amount} {currency} for order {order_id}")
-        logger.info(f"Using card ending in {payment_credentials.pan[-4:]}")
+        logger.info(f"Processing card payment for order {order_id}")
         
         # In real implementation, you would:
         # 1. Call your payment processor API

@@ -10,6 +10,7 @@ This module handles all interactions with the Nekuda SDK including:
 import logging
 import os
 import uuid
+import threading
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
@@ -484,12 +485,18 @@ class NekudaService:
             raise Exception(f"Checkout flow failed: {str(e)}")
 
 
-# Global service instance - initialize after environment is loaded
-nekuda_service = None
+# Thread-safe singleton implementation
+_nekuda_service_instance = None
+_nekuda_service_lock = threading.Lock()
 
 def get_nekuda_service() -> NekudaService:
-    """Get or create the global Nekuda service instance"""
-    global nekuda_service
-    if nekuda_service is None:
-        nekuda_service = NekudaService()
-    return nekuda_service
+    """Get or create the global Nekuda service instance (thread-safe)"""
+    global _nekuda_service_instance
+    
+    # Double-checked locking pattern for thread safety
+    if _nekuda_service_instance is None:
+        with _nekuda_service_lock:
+            if _nekuda_service_instance is None:
+                _nekuda_service_instance = NekudaService()
+    
+    return _nekuda_service_instance

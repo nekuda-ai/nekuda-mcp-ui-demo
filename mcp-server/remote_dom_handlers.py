@@ -2528,9 +2528,9 @@ async def handle_checkout_remote_dom(request_id: str | int, session_id: str, arg
             # Process payment with the PAN (this would be real merchant API)
             payment_success = True  # Mock successful payment
             
-            print(f"🏪 MERCHANT: Processing payment with PAN ending in {pan[-4:]}")
-            print(f"🏪 MERCHANT: Amount: ${cart['total']:.2f}")
-            print(f"🏪 MERCHANT: Cardholder: {cardholder_name}")
+            logger.info(f"🏪 MERCHANT: Processing payment for order {order_id}")
+            logger.info(f"🏪 MERCHANT: Amount: ${cart['total']:.2f}")
+            logger.info(f"🏪 MERCHANT: Payment method: Card")
             
             if payment_success:
                 import random
