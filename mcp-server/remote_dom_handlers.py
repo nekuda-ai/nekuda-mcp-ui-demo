@@ -144,6 +144,7 @@ async def handle_get_products_remote_dom(request_id: str | int, arguments: Dict[
             "category": product.category,
             "icon": product.icon,
             "color": product.color,
+            "store": product.store,  # Store identifier for ticker display
             "variant_id": first_variant.id if first_variant else "",
             # 🏀 Add jersey image and NBA fields  
             "image_filename": product.image_url.split('/')[-1] if product.image_url else 'placeholder.jpg',
@@ -155,6 +156,25 @@ async def handle_get_products_remote_dom(request_id: str | int, arguments: Dict[
     script = f"""
 // MCP-UI React Remote DOM Component
 const products = {json.dumps(products_data)};
+
+// Add CSS animation for store ticker
+if (!document.querySelector('#store-ticker-animation')) {{
+    const style = document.createElement('style');
+    style.id = 'store-ticker-animation';
+    style.textContent = `
+        @keyframes store-ticker-pulse {{
+            0%, 100% {{ 
+                box-shadow: 0 4px 12px rgba(206, 17, 65, 0.35);
+                transform: scale(1);
+            }}
+            50% {{ 
+                box-shadow: 0 4px 20px rgba(206, 17, 65, 0.5);
+                transform: scale(1.02);
+            }}
+        }}
+    `;
+    document.head.appendChild(style);
+}}
 
 function ProductNavigator() {{
     const [currentIndex, setCurrentIndex] = React.useState(0);
@@ -289,9 +309,36 @@ function ProductNavigator() {{
             margin: '10px auto',
             color: '#ffffff',
             fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif',
-            overflow: 'visible'
+            overflow: 'visible',
+            position: 'relative'  // For absolute positioning of ticker
         }}
     }}, [
+        // Store Ticker (top-right corner)
+        product.store ? React.createElement('div', {{
+            key: 'store-ticker',
+            style: {{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                background: 'linear-gradient(135deg, rgba(206, 17, 65, 0.9), rgba(255, 107, 53, 0.9))',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(206, 17, 65, 0.4)',
+                borderRadius: '16px',
+                padding: '4px 12px',
+                fontSize: '0.7rem',
+                fontWeight: '600',
+                color: '#ffffff',
+                boxShadow: '0 4px 12px rgba(206, 17, 65, 0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                zIndex: 10,
+                animation: 'store-ticker-pulse 2s ease-in-out infinite'
+            }}
+        }}, [
+            React.createElement('span', {{ key: 'store-icon', style: {{ fontSize: '0.6rem' }} }}, '🏪'),
+            React.createElement('span', {{ key: 'store-name' }}, product.store)
+        ]) : null,
         // Header
         React.createElement('div', {{
             style: {{ textAlign: 'center', marginBottom: '12px' }}
@@ -502,14 +549,14 @@ function ProductNavigator() {{
                 style: {{
                     flex: '1',
                     padding: '8px 8px',
-                    border: '1px solid rgba(0, 210, 255, 0.3)',
+                    border: '1px solid rgba(0, 210, 255, 0.4)',
                     borderRadius: '8px',
                     background: 'linear-gradient(135deg, #00D2FF 0%, #3A7BD5 100%)',
                     color: 'white',
                     fontSize: '0.85rem',
                     fontWeight: '600',
                     cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(0, 210, 255, 0.25)',
+                    boxShadow: '0 4px 12px rgba(0, 210, 255, 0.35)',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                 }},
                 onMouseEnter: (e) => {{
@@ -977,6 +1024,7 @@ async def handle_get_product_details_remote_dom(request_id: str | int, arguments
         "price": product.price,
         "icon": product.icon,
         "color": product.color,
+        "store": product.store,  # Add store field for ticker display
         "variant_id": product.variants[0].id if product.variants else "",
         "image_url": product.image_url,
         "category": product.category,
@@ -1037,9 +1085,36 @@ function ProductDetails() {{
             margin: '0 auto',
             color: '#ffffff',
             fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif',
-            textAlign: 'center'
+            textAlign: 'center',
+            position: 'relative'  // For absolute positioning of ticker
         }}
     }}, [
+        // Store Ticker (top-right corner)
+        product.store ? React.createElement('div', {{
+            key: 'store-ticker',
+            style: {{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                background: 'linear-gradient(135deg, rgba(206, 17, 65, 0.9), rgba(255, 107, 53, 0.9))',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(206, 17, 65, 0.4)',
+                borderRadius: '16px',
+                padding: '4px 12px',
+                fontSize: '0.7rem',
+                fontWeight: '600',
+                color: '#ffffff',
+                boxShadow: '0 4px 12px rgba(206, 17, 65, 0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                zIndex: 10,
+                animation: 'store-ticker-pulse 2s ease-in-out infinite'
+            }}
+        }}, [
+            React.createElement('span', {{ key: 'store-icon', style: {{ fontSize: '0.6rem' }} }}, '🏪'),
+            React.createElement('span', {{ key: 'store-name' }}, product.store)
+        ]) : null,
         // Jersey Image Container with hover effects
         React.createElement('div', {{
             key: 'image-container',
@@ -1233,7 +1308,7 @@ function ProductDetails() {{
                 onClick: handleAddToCart,
                 style: {{
                     padding: '12px 20px',
-                    border: '1px solid rgba(0, 210, 255, 0.3)',
+                    border: '1px solid rgba(0, 210, 255, 0.4)',
                     borderRadius: '8px',
                     background: 'linear-gradient(135deg, #00D2FF 0%, #3A7BD5 100%)',
                     color: 'white',
@@ -1438,7 +1513,7 @@ function AddToCartSuccess({ onAction }) {
                 style: {
                     background: 'linear-gradient(135deg, #00D2FF 0%, #3A7BD5 100%)',
                     color: 'white',
-                    border: '1px solid rgba(0, 210, 255, 0.3)',
+                    border: '1px solid rgba(206, 17, 65, 0.4)',
                     padding: '14px 28px',
                     borderRadius: '12px',
                     fontSize: '0.9375rem',
@@ -1989,14 +2064,14 @@ function CartDisplay({{ onAction }}) {{
                     style: {{
                         flex: '1',
                         padding: '14px 20px',
-                        border: '1px solid rgba(0, 210, 255, 0.3)',
+                        border: '1px solid rgba(206, 17, 65, 0.4)',
                         borderRadius: '8px',
                         background: 'linear-gradient(135deg, #00D2FF 0%, #3A7BD5 100%)',
                         color: 'white',
                         fontSize: '0.9rem',
                         fontWeight: '600',
                         cursor: 'pointer',
-                        boxShadow: '0 4px 12px rgba(0, 210, 255, 0.25)',
+                        boxShadow: '0 4px 12px rgba(206, 17, 65, 0.35)',
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                     }},
                     onMouseEnter: (e) => {{

@@ -51,6 +51,7 @@ class Product:
     icon: str = "📦"
     color: str = "#3b82f6"
     in_stock: bool = True
+    store: str = ""  # Store identifier for multi-store support
     # 🏀 POC: New fields for NBA jersey feature
     highlight_gif: str = ""
     player_stats: str = ""
@@ -93,6 +94,7 @@ def _load_products_from_config():
             variants=variants,
             icon=product_data["icon"],
             color=product_data["color"],
+            store=product_data.get("store", ""),
             # 🏀 POC: Handle new NBA fields safely
             highlight_gif=product_data.get("highlight_gif", ""),
             player_stats=product_data.get("player_stats", "")
