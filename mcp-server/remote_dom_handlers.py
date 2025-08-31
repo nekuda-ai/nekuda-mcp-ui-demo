@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from typing import Dict, Any, List
 from models import MCPResponse, products, carts, create_ui_resource
 from shared.config import UI_THEME
+from quote_service import merchant_quote_service
 
 # Configure logger for this module
 logger = logging.getLogger("remote_dom_handlers")
@@ -166,6 +167,10 @@ if (!document.querySelector('#store-ticker-animation')) {{
     const style = document.createElement('style');
     style.id = 'store-ticker-animation';
     style.textContent = `
+        @keyframes spin {{
+            0% {{ transform: rotate(0deg); }}
+            100% {{ transform: rotate(360deg); }}
+        }}
         @keyframes store-ticker-pulse {{
             0%, 100% {{ 
                 box-shadow: 0 4px 12px rgba(206, 17, 65, 0.35);
@@ -190,16 +195,47 @@ function ProductNavigator() {{
         setProduct(products[currentIndex]);
     }}, [currentIndex]);
     
-    // Preload images for smoother navigation (demo optimization)
+    // Enhanced preloading with loading state management
+    const [loadedAssets, setLoadedAssets] = React.useState(new Set());
+    const [allAssetsLoaded, setAllAssetsLoaded] = React.useState(false);
+    
     React.useEffect(() => {{
+        const loadPromises = [];
+        
         products.forEach(product => {{
-            const img = new Image();
-            img.src = '{MEDIA_SERVER_URL}/media/' + product.image_filename;
+            // Preload static jersey image
+            const imgPromise = new Promise((resolve, reject) => {{
+                const img = new Image();
+                img.onload = () => {{
+                    setLoadedAssets(prev => new Set([...prev, product.image_filename]));
+                    resolve(product.image_filename);
+                }};
+                img.onerror = reject;
+                img.src = '{MEDIA_SERVER_URL}/media/' + product.image_filename;
+            }});
+            loadPromises.push(imgPromise);
+            
+            // Preload highlight GIF if available
             if (product.highlight_gif) {{
-                const gif = new Image();
-                gif.src = '{MEDIA_SERVER_URL}/media/' + product.highlight_gif;
+                const gifPromise = new Promise((resolve, reject) => {{
+                    const gif = new Image();
+                    gif.onload = () => {{
+                        setLoadedAssets(prev => new Set([...prev, product.highlight_gif]));
+                        resolve(product.highlight_gif);
+                    }};
+                    gif.onerror = reject;
+                    gif.src = '{MEDIA_SERVER_URL}/media/' + product.highlight_gif;
+                }});
+                loadPromises.push(gifPromise);
             }}
         }});
+        
+        // Track when all assets are loaded
+        Promise.allSettled(loadPromises).then(() => {{
+            setAllAssetsLoaded(true);
+            console.log('🏀 All carousel assets preloaded successfully');
+        }});
+        
     }}, []);
 
     const handleViewDetails = (productId) => {{
@@ -299,6 +335,57 @@ function ProductNavigator() {{
     }};
 
     if (!product) return React.createElement('div', null, 'Loading...');
+
+    // Show loading state while assets are preloading
+    if (!allAssetsLoaded) {{
+        return React.createElement('div', {{
+            style: {{
+                width: '100%',
+                maxWidth: '420px',
+                background: 'rgba(45, 45, 50, 0.95)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(70, 70, 80, 0.8)',
+                borderRadius: '12px',
+                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
+                padding: '40px 24px',
+                margin: '10px auto',
+                color: '#ffffff',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px'
+            }}
+        }}, [
+            React.createElement('div', {{
+                key: 'spinner',
+                style: {{
+                    width: '40px',
+                    height: '40px',
+                    border: '3px solid rgba(255, 255, 255, 0.1)',
+                    borderTop: '3px solid #00d2ff',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                }}
+            }}),
+            React.createElement('div', {{
+                key: 'text',
+                style: {{
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    color: 'rgba(255, 255, 255, 0.8)'
+                }}
+            }}, 'Loading NBA Jersey Carousel...'),
+            React.createElement('div', {{
+                key: 'progress',
+                style: {{
+                    fontSize: '14px',
+                    color: 'rgba(255, 255, 255, 0.6)'
+                }}
+            }}, `Loaded ${{loadedAssets.size}} assets`)
+        ]);
+    }}
 
     return React.createElement('div', {{
         style: {{
@@ -452,7 +539,7 @@ function ProductNavigator() {{
                         height: '100%',
                         objectFit: 'cover',
                         borderRadius: '12px',
-                        opacity: hoveredProduct === product.id ? 0.9 : 0,
+                        opacity: (hoveredProduct === product.id && loadedAssets.has(product.highlight_gif)) ? 0.9 : 0,
                         transition: 'opacity 0.4s ease',
                         pointerEvents: 'none',
                         zIndex: 2
@@ -701,7 +788,9 @@ async def handle_process_checkout_remote_dom(request_id: str | int, session_id: 
     # Generate mock order ID
     import time
     order_id = f"ORD-{int(time.time())}"
-    order_total = cart["total"]
+    # Get final total from quote service (includes tax and shipping)
+    quote = merchant_quote_service.get_quote(session_id)
+    order_total = quote.total if quote else cart["total"]
     
     # Process the order (in real app, would integrate with payment processor)
     order_summary = []
@@ -2174,7 +2263,9 @@ async def handle_process_checkout_remote_dom(request_id: str | int, session_id: 
     # Generate mock order ID
     import time
     order_id = f"ORD-{int(time.time())}"
-    order_total = cart["total"]
+    # Get final total from quote service (includes tax and shipping)
+    quote = merchant_quote_service.get_quote(session_id)
+    order_total = quote.total if quote else cart["total"]
     
     # Process the order (in real app, would integrate with payment processor)
     order_summary = []
@@ -2495,6 +2586,17 @@ async def handle_checkout_remote_dom(request_id: str | int, session_id: str, arg
             error={"code": -32602, "message": "Cannot checkout with empty cart"}
         )
     
+    # Get final total from quote service (includes tax and shipping)
+    quote = merchant_quote_service.get_quote(session_id)
+    final_total = quote.total if quote else cart["total"]
+    
+    # Log which total we're using
+    if quote:
+        logger.info(f"Using final total from quote: ${final_total:.2f} (merchandise: ${cart['total']:.2f}, tax: ${quote.tax:.2f}, shipping: ${quote.subtotal - quote.merchandise_total:.2f})")
+    else:
+        logger.info(f"No quote found, using cart total: ${final_total:.2f}")
+        final_total = cart["total"]  # Fallback to cart total
+    
     # Extract payment credentials from frontend arguments
     if not arguments:
         return MCPResponse(
@@ -2529,7 +2631,7 @@ async def handle_checkout_remote_dom(request_id: str | int, session_id: str, arg
             payment_success = True  # Mock successful payment
             
             logger.info(f"🏪 MERCHANT: Processing payment for order {order_id}")
-            logger.info(f"🏪 MERCHANT: Amount: ${cart['total']:.2f}")
+            logger.info(f"🏪 MERCHANT: Amount: ${final_total:.2f}")
             logger.info(f"🏪 MERCHANT: Payment method: Card")
             
             if payment_success:
@@ -2630,7 +2732,7 @@ function PaymentSuccess({{ onAction }}) {{
             React.createElement('div', {{
                 key: 'total',
                 style: {{ marginBottom: '8px', color: 'rgba(255, 255, 255, 0.9)' }}
-            }}, 'Total: ${cart["total"]:.2f}'),
+            }}, 'Total: ${final_total:.2f}'),
             React.createElement('div', {{
                 key: 'payment',
                 style: {{ color: 'rgba(255, 255, 255, 0.9)' }}
@@ -3273,7 +3375,9 @@ async def handle_process_checkout_remote_dom(request_id: str | int, session_id: 
     # Generate mock order ID
     import time
     order_id = f"ORD-{int(time.time())}"
-    order_total = cart["total"]
+    # Get final total from quote service (includes tax and shipping)
+    quote = merchant_quote_service.get_quote(session_id)
+    order_total = quote.total if quote else cart["total"]
     
     # Process the order (in real app, would integrate with payment processor)
     order_summary = []
