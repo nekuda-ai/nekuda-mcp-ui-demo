@@ -336,6 +336,10 @@ const proceedToCheckout = async () => {
       }
     }
     
+    // Step 2.5: Refresh quote to ensure we have the latest version before checkout
+    console.log('Refreshing quote before checkout to ensure latest version...')
+    await cartStore.updateQuote(userId)
+    
     // Step 3: Atomic checkout - create mandate and get payment credentials when user clicks checkout
     console.log('Creating mandate and retrieving payment credentials...')
     const atomicCheckoutData = await atomicNekudaCheckout(
@@ -343,7 +347,7 @@ const proceedToCheckout = async () => {
       cartStore.finalTotal, // Use final total from quote
       cartStore.items,
       cartStore.currentQuote?.quote_session_id,
-      cartStore.currentQuote?.version
+      cartStore.currentQuote?.version // Now guaranteed to be latest
     )
     
     console.log('Atomic checkout completed:', {
