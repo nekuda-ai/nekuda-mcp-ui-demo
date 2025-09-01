@@ -40,8 +40,7 @@ from remote_dom_handlers import (
     handle_get_product_details_remote_dom,
     handle_add_to_cart_remote_dom,
     handle_get_cart_remote_dom,
-    handle_checkout_remote_dom,
-    handle_process_checkout_remote_dom
+    handle_checkout_remote_dom
 )
 
 # Additional models for MCP protocol
@@ -224,21 +223,6 @@ async def mcp_endpoint(raw_request: Dict[str, Any]):
                             "payment_method": {"type": "string"}
                         },
                         "required": ["session_id"]
-                    }
-                ),
-                MCPTool(
-                    name="process_checkout",
-                    description="Process the checkout form submission and complete the order",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "session_id": {"type": "string"},
-                            "name": {"type": "string"},
-                            "email": {"type": "string"},
-                            "address": {"type": "string"},
-                            "payment_method": {"type": "string"}
-                        },
-                        "required": ["session_id", "name", "email", "address"]
                     }
                 ),
                 MCPTool(
@@ -475,9 +459,6 @@ async def mcp_endpoint(raw_request: Dict[str, Any]):
             elif tool_name == "set_cart_quantity":
                 session_id = arguments.get("session_id") or "default"
                 return await handle_set_cart_quantity(request.id, arguments, session_id)
-            elif tool_name == "process_checkout":
-                session_id = arguments.get("session_id") or "default"
-                return await handle_process_checkout_remote_dom(request.id, session_id, arguments)
             elif tool_name == "get_nba_jerseys":
                 # Filter to show only NBA jerseys
                 arguments["category"] = "nba-jerseys"
