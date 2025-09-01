@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { CartItem } from '@/types'
+import { logger } from '@/utils/logger'
 import { chatApi } from '@/utils/api'
 import { getCartId, setCartId } from '@/utils/cartId'
 import { cartOperationsQueue } from '@/utils/asyncQueue'
@@ -139,32 +140,32 @@ export const useCartStore = defineStore('cart', () => {
       
       while (retryCount < maxRetries) {
         try {
-          console.log(`🔄 Creating cart session (attempt ${retryCount + 1}/${maxRetries})...`)
+          logger.debug(`🔄 Creating cart session (attempt ${retryCount + 1}/${maxRetries})...`)
           const response = await chatApi.createCartSession()
           const newCartId = response.session_id
           setCartId(newCartId)
           cartId.value = newCartId
-          console.log('✨ Created new cart session:', newCartId)
+          logger.debug('✨ Created new cart session:', newCartId)
           return // Success - exit retry loop
         } catch (error) {
           retryCount++
-          console.error(`Failed to create cart session (attempt ${retryCount}/${maxRetries}):`, error)
+          logger.error(`Failed to create cart session (attempt ${retryCount}/${maxRetries}):`, error)
           
           if (retryCount < maxRetries) {
             // Wait before retrying (exponential backoff)
             const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000)
-            console.log(`⏳ Retrying in ${delay}ms...`)
+            logger.debug(`⏳ Retrying in ${delay}ms...`)
             await new Promise(resolve => setTimeout(resolve, delay))
           } else {
-            console.error('❌ Failed to create cart session after all retries')
+            logger.error('❌ Failed to create cart session after all retries')
             // Set a temporary fallback ID for graceful degradation
             cartId.value = `fallback-${Date.now()}`
-            console.warn('⚠️ Using fallback cart ID for offline mode:', cartId.value)
+            logger.warn('⚠️ Using fallback cart ID for offline mode:', cartId.value)
           }
         }
       }
     } else {
-      console.log('🔄 Reusing existing cart session:', cartId.value)
+      logger.debug('🔄 Reusing existing cart session:', cartId.value)
     }
     await syncCart()
   }
@@ -173,19 +174,19 @@ export const useCartStore = defineStore('cart', () => {
   const syncCart = async () => {
     // Skip sync if no session ID available
     if (!cartId.value) {
-      console.log('🚫 Skipping cart sync - no session ID available')
+      logger.debug('🚫 Skipping cart sync - no session ID available')
       return
     }
     
     // Skip sync if using fallback ID (offline mode)
     if (cartId.value.startsWith('fallback-')) {
-      console.log('🚫 Skipping cart sync - using fallback cart ID (offline mode)')
+      logger.debug('🚫 Skipping cart sync - using fallback cart ID (offline mode)')
       return
     }
     
     // Skip sync if there are pending operations to avoid race conditions
     if (pendingOperations.value.size > 0) {
-      console.log('⏸️ Skipping cart sync - pending operations in progress')
+      logger.debug('⏸️ Skipping cart sync - pending operations in progress')
       return
     }
     
@@ -204,7 +205,7 @@ export const useCartStore = defineStore('cart', () => {
             .filter((i: any) => i && i.product_id && i.variant_id && i.name && i.price != null)
             .map((i: any) => {
               const meta = PRODUCT_META[i.product_id] || { icon: '📦', color: '#3b82f6' }
-              console.log(`Cart item mapping: ${i.product_id} -> image: ${i.image_url}, fallback icon: ${meta.icon}`)
+              logger.debug(`Cart item mapping: ${i.product_id} -> image: ${i.image_url}, fallback icon: ${meta.icon}`)
               return {
                 id: `cart-${i.product_id}-${i.variant_id}`,
                 productId: i.product_id,
@@ -222,7 +223,7 @@ export const useCartStore = defineStore('cart', () => {
         }
       }
     } catch (e) {
-      console.error('Failed to sync cart from server', e)
+      logger.error('Failed to sync cart from server', e)
     }
   }
   const addItem = async (item: Omit<CartItem, 'id'>) => {
@@ -262,15 +263,15 @@ export const useCartStore = defineStore('cart', () => {
         },
         session_id: cartId.value
       }).catch(e => {
-        console.warn('Background server sync failed, but UI remains responsive:', e)
+        logger.warn('Background server sync failed, but UI remains responsive:', e)
         // Don't rollback for demo - keep optimistic updates
       })
       
-      console.log(`✅ Added ${item.productId} to cart (demo mode)`)
+      logger.info(`✅ Added ${item.productId} to cart (demo mode)`)
       return { status: 'success', item: newItem }
       
     } catch (e) {
-      console.error('Failed to add item', e)
+      logger.error('Failed to add item', e)
       // Rollback optimistic update
       items.value = [...backupItems.value]
       throw e
@@ -302,10 +303,10 @@ export const useCartStore = defineStore('cart', () => {
         params: { product_id: item.productId, variant_id: item.variantId },
         session_id: cartId.value
       }).catch(e => {
-        console.warn('Background server sync failed, but UI remains responsive:', e)
+        logger.warn('Background server sync failed, but UI remains responsive:', e)
       })
       
-      console.log(`✅ Removed ${item.productId} from cart (demo mode)`)
+      logger.info(`✅ Removed ${item.productId} from cart (demo mode)`)
       return { status: 'success', removedItem: item }
       
     } finally {
@@ -343,10 +344,10 @@ export const useCartStore = defineStore('cart', () => {
         params: { product_id: item.productId, variant_id: item.variantId, quantity },
         session_id: cartId.value
       }).catch(e => {
-        console.warn('Background server sync failed, but UI remains responsive:', e)
+        logger.warn('Background server sync failed, but UI remains responsive:', e)
       })
       
-      console.log(`✅ Updated quantity for ${item.productId} (demo mode)`)
+      logger.info(`✅ Updated quantity for ${item.productId} (demo mode)`)
       return { status: 'success', item, quantity }
       
     } finally {
@@ -375,10 +376,10 @@ export const useCartStore = defineStore('cart', () => {
         params: {},
         session_id: cartId.value
       }).catch(e => {
-        console.warn('Background server sync failed, but UI remains responsive:', e)
+        logger.warn('Background server sync failed, but UI remains responsive:', e)
       })
       
-      console.log(`✅ Cleared cart (demo mode)`)
+      logger.info(`✅ Cleared cart (demo mode)`)
       return { status: 'success', clearedItems: backup.length }
       
     } finally {
@@ -438,7 +439,7 @@ export const useCartStore = defineStore('cart', () => {
 
   const loadBillingDetailsFromWallet = async (userId: string) => {
     try {
-      console.log(`🔄 Attempting to load billing details for user: ${userId}`)
+      logger.debug(`🔄 Attempting to load billing details for user: ${userId}`)
       const response = await axios.get(`/api/nekuda-billing-details?userId=${userId}`)
       if (response.data.success && response.data.billing_details) {
         const billing = response.data.billing_details
@@ -451,13 +452,13 @@ export const useCartStore = defineStore('cart', () => {
           postal_code: billing.zip_code,
           country: 'US'
         }
-        console.log('🏠 Loaded billing details from wallet:', shippingAddress.value)
+        logger.debug('🏠 Loaded billing details from wallet:', shippingAddress.value)
         return shippingAddress.value
       }
     } catch (error) {
-      console.log('⚠️ Could not load billing details from wallet:', error.response?.status, error.response?.data)
+      logger.debug('⚠️ Could not load billing details from wallet:', error.response?.status, error.response?.data)
       if (error.response?.status === 404) {
-        console.log('💡 No billing details found - this is normal for new users')
+        logger.debug('💡 No billing details found - this is normal for new users')
       }
     }
     return null
@@ -504,15 +505,15 @@ export const useCartStore = defineStore('cart', () => {
         }
       }
 
-      console.log('📊 Updating quote:', quoteRequest)
+      logger.debug('📊 Updating quote:', quoteRequest)
       
       const response = await axios.post('/api/quotes/create-or-update', quoteRequest)
       currentQuote.value = response.data
       
-      console.log(`💰 Quote updated: $${currentQuote.value?.total} (${currentQuote.value?.status})`)
+      logger.info(`💰 Quote updated: $${currentQuote.value?.total} (${currentQuote.value?.status})`)
       
     } catch (error) {
-      console.error('Failed to update quote:', error)
+      logger.error('Failed to update quote:', error)
       quoteError.value = 'Failed to calculate pricing'
     } finally {
       isLoadingQuote.value = false
@@ -528,7 +529,7 @@ export const useCartStore = defineStore('cart', () => {
     if (!currentQuote.value) return
     
     try {
-      console.log(`Selecting shipping option: ${shippingOptionId}`)
+      logger.debug(`Selecting shipping option: ${shippingOptionId}`)
       
       // Optimistic update - immediately update UI for better UX
       const currentOptions = [...currentQuote.value.shipping_options]
@@ -563,7 +564,7 @@ export const useCartStore = defineStore('cart', () => {
         }
       }
 
-      console.log('Sending quote request with shipping selection:', quoteRequest)
+      logger.debug('Sending quote request with shipping selection:', quoteRequest)
       const response = await axios.post('/api/quotes/create-or-update', quoteRequest)
       
       // Clear the timeout since request completed
@@ -571,10 +572,10 @@ export const useCartStore = defineStore('cart', () => {
       
       // Update with server response
       currentQuote.value = response.data
-      console.log('Updated quote after shipping selection:', currentQuote.value)
+      logger.debug('Updated quote after shipping selection:', currentQuote.value)
       
     } catch (error) {
-      console.error('Failed to select shipping option:', error)
+      logger.error('Failed to select shipping option:', error)
       // Revert optimistic update on error
       if (currentQuote.value) {
         const response = await axios.post('/api/quotes/create-or-update', {

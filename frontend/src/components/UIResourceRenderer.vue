@@ -63,6 +63,7 @@
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import { useCartStore } from '@/stores/cart'
+import { logger } from '@/utils/logger'
 import type { UIResource } from '@/types'
 
 interface Props {
@@ -105,7 +106,7 @@ const setError = (message: string) => {
   hasError.value = true
   errorMessage.value = message
   isLoading.value = false
-  console.error('UIResourceRenderer Error:', message)
+  logger.error('UIResourceRenderer Error:', message)
 }
 
 const clearError = () => {
@@ -121,20 +122,20 @@ const retryRender = () => {
 // Defensive DOM operation wrapper
 const safeDOMOperation = async (operation: () => Promise<void> | void, errorContext: string) => {
   if (isDestroyed.value) {
-    console.warn('Skipping DOM operation - component destroyed:', errorContext)
+    logger.warn('Skipping DOM operation - component destroyed:', errorContext)
     return
   }
   
   // Additional check for container availability
   if (!mcpUIContainer.value || !mcpUIContainer.value.parentNode) {
-    console.warn('Skipping DOM operation - container not available:', errorContext)
+    logger.warn('Skipping DOM operation - container not available:', errorContext)
     return
   }
   
   try {
     await operation()
   } catch (error) {
-    console.error('DOM operation failed:', errorContext, error)
+    logger.error('DOM operation failed:', errorContext, error)
     setError(`${errorContext}: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
@@ -143,7 +144,7 @@ const safeDOMOperation = async (operation: () => Promise<void> | void, errorCont
 const handleUIAction = async (actionResult: any) => {
   try {
     if (isDestroyed.value) return
-    console.log('MCP-UI Action:', actionResult)
+    logger.debug('MCP-UI Action:', actionResult)
     
     // Handle different action types according to official format
     switch (actionResult.type) {
@@ -163,7 +164,7 @@ const handleUIAction = async (actionResult: any) => {
         break
         
       case 'notify':
-        console.log('Notification:', actionResult.payload.message)
+        logger.info('Notification:', actionResult.payload.message)
         break
         
       case 'link':
@@ -190,10 +191,10 @@ const handleUIAction = async (actionResult: any) => {
         }
         break
       default:
-        console.warn('Unknown UI action type:', actionResult.type)
+        logger.warn('Unknown UI action type:', actionResult.type)
     }
   } catch (error) {
-    console.error('Failed to handle UI action:', error)
+    logger.error('Failed to handle UI action:', error)
   }
 }
 
@@ -205,7 +206,7 @@ const preloadReactLibraries = async () => {
   if (reactLibrariesCache) return reactLibrariesCache
   
   try {
-    console.log('📦 Preloading React libraries from CDN...')
+    logger.debug('📦 Preloading React libraries from CDN...')
     const [reactResponse, reactDOMResponse] = await Promise.all([
       fetch('https://unpkg.com/react@18/umd/react.development.js'),
       fetch('https://unpkg.com/react-dom@18/umd/react-dom.development.js')
@@ -221,10 +222,10 @@ const preloadReactLibraries = async () => {
       reactDOM: reactDOMCode
     }
     
-    console.log('✅ React libraries preloaded and cached')
+    logger.debug('✅ React libraries preloaded and cached')
     return reactLibrariesCache
   } catch (error) {
-    console.warn('Failed to preload React libraries, falling back to CDN:', error)
+    logger.warn('Failed to preload React libraries, falling back to CDN:', error)
     return null
   }
 }
@@ -246,7 +247,7 @@ const initializeRemoteDomRenderer = async () => {
       throw new Error('Container not connected to DOM')
     }
 
-    console.log('🔄 Initializing Remote-DOM renderer with iframe sandbox')
+    logger.debug('🔄 Initializing Remote-DOM renderer with iframe sandbox')
     clearError()
     isLoading.value = true
     
@@ -254,27 +255,27 @@ const initializeRemoteDomRenderer = async () => {
     let reusingIframe = false
     
     // Simplified iframe management - always create fresh iframe to avoid security issues
-    console.log('🔄 IFRAME DEBUG: Starting iframe initialization')
-    console.log('🔄 IFRAME DEBUG: Current iframe exists:', !!currentIframe)
-    console.log('🔄 IFRAME DEBUG: Container contains current iframe:', currentIframe && mcpUIContainer.value.contains(currentIframe))
+    logger.debug('🔄 IFRAME DEBUG: Starting iframe initialization')
+    logger.debug('🔄 IFRAME DEBUG: Current iframe exists:', !!currentIframe)
+    logger.debug('🔄 IFRAME DEBUG: Container contains current iframe:', currentIframe && mcpUIContainer.value.contains(currentIframe))
     
     // Always clean up existing iframe to avoid cross-origin security issues
     if (currentIframe) {
-      console.log('🧹 IFRAME DEBUG: Cleaning up existing iframe')
+      logger.debug('🧹 IFRAME DEBUG: Cleaning up existing iframe')
       try {
         if (currentIframe.parentNode) {
           currentIframe.parentNode.removeChild(currentIframe)
-          console.log('✅ IFRAME DEBUG: Successfully removed old iframe from DOM')
+          logger.debug('✅ IFRAME DEBUG: Successfully removed old iframe from DOM')
         }
       } catch (cleanupError) {
-        console.log('🔒 IFRAME DEBUG: Iframe cleanup failed (expected for security restrictions):', cleanupError)
+        logger.debug('🔒 IFRAME DEBUG: Iframe cleanup failed (expected for security restrictions):', cleanupError)
       }
       currentIframe = null
     }
     
     // Always create fresh iframe - no reuse to avoid security complications
     reusingIframe = false
-    console.log('🚀 IFRAME DEBUG: Creating fresh iframe (no reuse for security)')
+    logger.debug('🚀 IFRAME DEBUG: Creating fresh iframe (no reuse for security)')
     
     if (!reusingIframe) {
       // Create new iframe with enhanced validation
@@ -311,7 +312,7 @@ const initializeRemoteDomRenderer = async () => {
       try {
         mcpUIContainer.value.appendChild(iframe)
         currentIframe = iframe
-        console.log('✅ New iframe created and added to container')
+        logger.debug('✅ New iframe created and added to container')
       } catch (e) {
         throw new Error(`Failed to add iframe to container: ${e}`)
       }
@@ -324,13 +325,13 @@ const initializeRemoteDomRenderer = async () => {
     const componentNameMatch = componentScript.trim().match(/^function\s+(\w+)\s*\(/);
     const componentName = componentNameMatch ? componentNameMatch[1] : 'ProductNavigator'
     
-    console.log('🔍 Component script preview:', componentScript.trim().substring(0, 100))
-    console.log('🎯 Extracted component name:', componentName)
-    console.log('🔍 Component name regex match result:', componentNameMatch)
+    logger.debug('🔍 Component script preview:', componentScript.trim().substring(0, 100))
+    logger.debug('🎯 Extracted component name:', componentName)
+    logger.debug('🔍 Component name regex match result:', componentNameMatch)
     
     // Debug component detection
-    console.log('🔍 COMPONENT DEBUG: Detected component name:', componentName)
-    console.log('🔍 COMPONENT DEBUG: Is ProductDetails?', componentName === 'ProductDetails')
+    logger.debug('🔍 COMPONENT DEBUG: Detected component name:', componentName)
+    logger.debug('🔍 COMPONENT DEBUG: Is ProductDetails?', componentName === 'ProductDetails')
     
     // Removed ProductDetails special handling that was causing iframe issues
     // All components now follow the same iframe lifecycle
@@ -346,11 +347,11 @@ const initializeRemoteDomRenderer = async () => {
       
       // Use cached React libraries if available, otherwise fall back to CDN
       if (cachedLibraries) {
-        console.log('🚀 Using cached React libraries for faster loading')
+        logger.debug('🚀 Using cached React libraries for faster loading')
         htmlContent += '    <script>\n' + cachedLibraries.react + '\n<' + '/script>\n'
         htmlContent += '    <script>\n' + cachedLibraries.reactDOM + '\n<' + '/script>\n'
       } else {
-        console.log('📡 Falling back to CDN for React libraries')
+        logger.debug('📡 Falling back to CDN for React libraries')
         htmlContent += '    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"><' + '/script>\n'
         htmlContent += '    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"><' + '/script>\n'
       }
@@ -444,7 +445,7 @@ const initializeRemoteDomRenderer = async () => {
       htmlContent += '            \n'
       htmlContent += '            // Set up action handler for communication with parent\n'
       htmlContent += '            const onAction = (actionData) => {\n'
-      htmlContent += '                console.log("📤 Sending action to parent:", actionData);\n'
+      htmlContent += '                // Debug: Sending action to parent\n'
       htmlContent += '                window.parent.postMessage(actionData, "*");\n'
       htmlContent += '            };\n'
       htmlContent += '            \n'
@@ -452,28 +453,44 @@ const initializeRemoteDomRenderer = async () => {
       htmlContent += '            ' + componentScript + '\n'
       htmlContent += '            \n'
       htmlContent += '            // Manual rendering if MCP component did not auto-render\n'
-      htmlContent += '            console.log("🔧 Checking if manual rendering needed. Root innerHTML:", root.innerHTML.substring(0, 100));\n'
-      htmlContent += '            console.log("🎯 Using component name:", "' + componentName + '");\n'
-      htmlContent += '            console.log("🔍 Available functions:", typeof ' + componentName + ');\n'
+      htmlContent += '            // Debug: Checking if manual rendering needed\n'
+      htmlContent += '            // Debug: Using component name: ' + componentName + '\n'
+      htmlContent += '            // Debug: Available functions check\n'
       htmlContent += '            if (root && root.innerHTML === "") {\n'
-      htmlContent += '                console.log("🚀 Creating component element with onAction prop");\n'
+      htmlContent += '                // Debug: Creating component element\n'
       htmlContent += '                try {\n'
       htmlContent += '                    const componentElement = React.createElement(' + componentName + ', { onAction });\n'
+      htmlContent += '                    // Clear any existing content and create fresh root\n'
+      htmlContent += '                    root.innerHTML = "";\n'
       htmlContent += '                    const reactRoot = ReactDOM.createRoot(root);\n'
       htmlContent += '                    reactRoot.render(componentElement);\n'
-      htmlContent += '                    console.log("✅ Component rendered manually");\n'
+      htmlContent += '                    // Store root for cleanup\n'
+      htmlContent += '                    window.reactRoot = reactRoot;\n'
+      htmlContent += '                    // Debug: Component rendered manually\n'
       htmlContent += '                } catch (renderError) {\n'
-      htmlContent += '                    console.error("❌ Component render error:", renderError);\n'
+      htmlContent += '                    console.error("Component render error:", renderError);\n'
       htmlContent += '                    root.innerHTML = "<div style=\\"padding: 20px; color: red; text-align: center;\\">❌ Component Render Error: " + renderError.message + "</div>";\n'
       htmlContent += '                }\n'
       htmlContent += '            } else {\n'
-      htmlContent += '                console.log("ℹ️ Component already rendered, skipping manual render");\n'
+      htmlContent += '                // Debug: Component already rendered\n'
       htmlContent += '            }\n'
       htmlContent += '            \n'
-      htmlContent += '            console.log("✅ Remote-DOM component rendered successfully");\n'
+      htmlContent += '            // Debug: Component rendered successfully\n'
+      htmlContent += '            \n'
+      htmlContent += '            // Cleanup function for when iframe is destroyed\n'
+      htmlContent += '            window.addEventListener("beforeunload", () => {\n'
+      htmlContent += '                if (window.reactRoot) {\n'
+      htmlContent += '                    try {\n'
+      htmlContent += '                        window.reactRoot.unmount();\n'
+      htmlContent += '                    } catch (e) {\n'
+      htmlContent += '                        // Ignore cleanup errors\n'
+      htmlContent += '                    }\n'
+      htmlContent += '                    window.reactRoot = null;\n'
+      htmlContent += '                }\n'
+      htmlContent += '            });\n'
       htmlContent += '            \n'
       htmlContent += '        } catch (error) {\n'
-      htmlContent += '            console.error("❌ Error rendering component:", error);\n'
+      htmlContent += '            console.error("Error rendering component:", error);\n'
       htmlContent += '            document.getElementById("root").innerHTML = \n'
       htmlContent += '                "<div style=\\"padding: 20px; color: red; text-align: center;\\">❌ Component Error: " + error.message + "<' + '/div>";\n'
       htmlContent += '        }\n'
@@ -485,44 +502,44 @@ const initializeRemoteDomRenderer = async () => {
     iframe.srcdoc = htmlContent
 
     // Add message listener for iframe communication with enhanced security checking
-    console.log('📡 MESSAGE DEBUG: Setting up iframe message listener')
+    logger.debug('📡 MESSAGE DEBUG: Setting up iframe message listener')
     const handleIframeMessage = (event: MessageEvent) => {
       // Component destruction check - prevent processing messages from destroyed components
       if (isDestroyed.value) {
-        console.log('🛑 MESSAGE DEBUG: Component destroyed, ignoring message')
+        logger.debug('🛑 MESSAGE DEBUG: Component destroyed, ignoring message')
         return
       }
       
-      console.log('📨 MESSAGE DEBUG: Received message from:', event.origin, 'Data:', event.data)
+      logger.debug('📨 MESSAGE DEBUG: Received message from:', event.origin, 'Data:', event.data)
       
       if (!iframe) {
-        console.log('❌ MESSAGE DEBUG: No iframe reference, ignoring message')
+        logger.debug('❌ MESSAGE DEBUG: No iframe reference, ignoring message')
         return
       }
       
       // Enhanced security check with better logging
       if (event.source !== iframe.contentWindow) {
-        console.log('⚠️ MESSAGE DEBUG: Message source does not match iframe contentWindow')
-        console.log('🔍 MESSAGE DEBUG: Expected source:', iframe.contentWindow)
-        console.log('🔍 MESSAGE DEBUG: Actual source:', event.source)
+        logger.debug('⚠️ MESSAGE DEBUG: Message source does not match iframe contentWindow')
+        logger.debug('🔍 MESSAGE DEBUG: Expected source:', iframe.contentWindow)
+        logger.debug('🔍 MESSAGE DEBUG: Actual source:', event.source)
         return
       }
       
       if (!event.data || !event.data.type) {
-        console.log('⚠️ MESSAGE DEBUG: Invalid message data structure')
+        logger.debug('⚠️ MESSAGE DEBUG: Invalid message data structure')
         return
       }
       
-      console.log('✅ MESSAGE DEBUG: Valid iframe message received:', event.data)
+      logger.debug('✅ MESSAGE DEBUG: Valid iframe message received:', event.data)
       handleUIAction(event.data)
     }
     
     window.addEventListener('message', handleIframeMessage)
-    console.log('✅ MESSAGE DEBUG: Message listener attached')
+    logger.debug('✅ MESSAGE DEBUG: Message listener attached')
     
     // Store cleanup function
     const cleanupFn = () => {
-      console.log('🧹 MESSAGE DEBUG: Removing remote-dom message listener')
+      logger.debug('🧹 MESSAGE DEBUG: Removing remote-dom message listener')
       window.removeEventListener('message', handleIframeMessage)
     }
     uiRendererInstance = cleanupFn
@@ -531,7 +548,7 @@ const initializeRemoteDomRenderer = async () => {
     if (iframe) {
       iframe.onload = () => {
         if (isDestroyed.value) return
-        console.log('✅ Remote-DOM iframe loaded successfully')
+        logger.debug('✅ Remote-DOM iframe loaded successfully')
         // Add small delay to ensure React rendering is complete
         setTimeout(() => {
           if (!isDestroyed.value && isLoading.value) {
@@ -545,14 +562,14 @@ const initializeRemoteDomRenderer = async () => {
       // Add timeout to prevent stuck loading state
       setTimeout(() => {
         if (!isDestroyed.value && isLoading.value) {
-          console.log('⏰ Iframe loading timeout, forcing completion')
+          logger.debug('⏰ Iframe loading timeout, forcing completion')
           isLoading.value = false
         }
       }, 3000)
       
       iframe.onerror = (error) => {
         if (isDestroyed.value) return
-        console.error('❌ Remote-DOM iframe error:', error)
+        logger.error('❌ Remote-DOM iframe error:', error)
         setError(`Iframe failed to load: ${error}`)
       }
     }
@@ -565,18 +582,18 @@ const initializeRenderer = async () => {
   await nextTick()
   
   if (!mcpUIContainer.value || !props.uiResource) {
-    console.warn('Container or resource not available for initialization')
+    logger.warn('Container or resource not available for initialization')
     return
   }
   
-  console.log('🔄 Initializing remote-dom renderer')
-  console.log('📄 Resource mimeType:', props.uiResource.resource?.mimeType)
+  logger.debug('🔄 Initializing remote-dom renderer')
+  logger.debug('📄 Resource mimeType:', props.uiResource.resource?.mimeType)
   
   // Handle remote-dom resources (only supported format)
   if (props.uiResource.resource.mimeType?.includes('application/vnd.mcp-ui.remote-dom+javascript') && props.uiResource.resource.text) {
     await initializeRemoteDomRenderer()
   } else {
-    console.error('❌ Unsupported resource format:', props.uiResource.resource.mimeType)
+    logger.error('❌ Unsupported resource format:', props.uiResource.resource.mimeType)
     mcpUIContainer.value!.innerHTML = `
       <div class="text-red-500 text-sm p-4 border border-red-200 rounded">
         ❌ Unsupported resource format: ${props.uiResource.resource.mimeType}
@@ -599,7 +616,7 @@ const scrollChatToBottom = () => {
 
 // Enhanced cleanup function with better container management
 const cleanup = () => {
-  console.log('🧹 Starting enhanced cleanup for component transition')
+  logger.debug('🧹 Starting enhanced cleanup for component transition')
   
   // Clear loading and error states
   isLoading.value = false
@@ -609,10 +626,10 @@ const cleanup = () => {
   try {
     if (messageListenerCleanup) {
       messageListenerCleanup()
-      console.log('🧹 Message listener cleaned up successfully')
+      logger.debug('🧹 Message listener cleaned up successfully')
     }
   } catch (error) {
-    console.warn('Error during listener cleanup:', error)
+    logger.warn('Error during listener cleanup:', error)
   }
   
   uiRendererInstance = null
@@ -624,6 +641,15 @@ const cleanup = () => {
       // Try to clear iframe content if accessible (may fail with SecurityError)
       try {
         if (currentIframe.contentWindow) {
+          // Try to clean up React root first
+          if (currentIframe.contentWindow.reactRoot) {
+            try {
+              currentIframe.contentWindow.reactRoot.unmount()
+              currentIframe.contentWindow.reactRoot = null
+            } catch (reactError) {
+              // Ignore React cleanup errors during iframe destruction
+            }
+          }
           const root = currentIframe.contentWindow.document.getElementById('root')
           if (root) {
             root.innerHTML = ''
@@ -631,16 +657,16 @@ const cleanup = () => {
         }
       } catch (securityError) {
         // Skip SecurityError - this is expected with cross-origin iframe restrictions
-        console.log('🔒 Skipping iframe content cleanup due to security restrictions (expected)')
+        logger.debug('🔒 Skipping iframe content cleanup due to security restrictions (expected)')
       }
       
       // Remove iframe from DOM if still attached
       if (currentIframe.parentNode) {
         currentIframe.parentNode.removeChild(currentIframe)
-        console.log('🗑️ Iframe removed from DOM successfully')
+        logger.debug('🗑️ Iframe removed from DOM successfully')
       }
     } catch (e) {
-      console.warn('Error during iframe cleanup:', e)
+      logger.warn('Error during iframe cleanup:', e)
     }
     
     currentIframe = null
@@ -654,7 +680,7 @@ const cleanup = () => {
         mcpUIContainer.value.innerHTML = ''
       }
     } catch (e) {
-      console.warn('Error clearing container:', e)
+      logger.warn('Error clearing container:', e)
     }
   }
   
@@ -668,13 +694,13 @@ const cleanup = () => {
 watch(
   () => props.uiResource,
   async (newResource, oldResource) => {
-    console.log('🔄 UIResource prop changed, re-initializing renderer')
-    console.log('📊 Old resource:', {
+    logger.debug('🔄 UIResource prop changed, re-initializing renderer')
+    logger.debug('📊 Old resource:', {
       type: oldResource?.type,
       mimeType: oldResource?.resource?.mimeType,
       textLength: oldResource?.resource?.text?.length || 0
     })
-    console.log('📊 New resource:', {
+    logger.debug('📊 New resource:', {
       type: newResource?.type,
       mimeType: newResource?.resource?.mimeType,
       textLength: newResource?.resource?.text?.length || 0
@@ -685,12 +711,12 @@ watch(
       isLoading.value = true
       
       // Clean up existing renderer
-      console.log('🧹 Cleaning up old renderer for component transition')
+      logger.debug('🧹 Cleaning up old renderer for component transition')
       cleanup()
       await nextTick()
       
       // Re-initialize with new resource
-      console.log('🚀 Initializing new renderer')
+      logger.debug('🚀 Initializing new renderer')
       await initializeRenderer()
     }
   },
@@ -698,28 +724,28 @@ watch(
 )
 
 onMounted(async () => {
-  console.log('🏁 UIResourceRenderer mounted, props:', props)
+  logger.debug('🏁 UIResourceRenderer mounted, props:', props)
   
   // Start preloading React libraries in the background for faster future initializations
-  preloadReactLibraries().catch(e => console.warn('Background React preload failed:', e))
+  preloadReactLibraries().catch(e => logger.warn('Background React preload failed:', e))
   
   initializeRenderer()
 })
 
 onUnmounted(() => {
-  console.log('🧹 UIResourceRenderer unmounting, marking as destroyed')
+  logger.debug('🧹 UIResourceRenderer unmounting, marking as destroyed')
   isDestroyed.value = true
   
   // Ensure message listener is cleaned up before component destruction
   if (messageListenerCleanup) {
-    console.log('🧹 UNMOUNT: Found message listener to clean up')
+    logger.debug('🧹 UNMOUNT: Found message listener to clean up')
   }
   
   cleanup()
   
   // Final safety check to ensure listener is removed
   if (messageListenerCleanup) {
-    console.warn('🚨 MEMORY LEAK WARNING: Message listener may not have been cleaned up properly')
+    logger.warn('🚨 MEMORY LEAK WARNING: Message listener may not have been cleaned up properly')
   }
 })
 </script>

@@ -136,7 +136,7 @@ This demo shows a unified payment architecture. Today, commerce MCPs provide cat
 - Dynamic CVV (DTVV) generated per transaction
 - True one-click checkout across ecosystems
 
-### Payment Flow - The Atomic Action
+### Payment Flow
 
 When a user clicks "Place Order," the system executes a single atomic payment operation:
 

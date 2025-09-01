@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { ChatMessage, ChatRequest, ChatResponse, UIActionResult } from '@/types'
+import { logger } from '@/utils/logger'
 import { chatApi } from '@/utils/api'
 import { useCartStore } from './cart'
 
@@ -93,7 +94,7 @@ export const useChatStore = defineStore('chat', () => {
   const recentActions = new Map<string, number>() // Track recent action timestamps for smart throttling
 
   const handleUIAction = async (action: UIActionResult) => {
-    console.log('🎯 Chat store handling UI action:', action)
+    logger.debug('🎯 Chat store handling UI action:', action)
     
     const now = Date.now()
     const actionKey = `${action.type}-${action.payload.toolName}-${JSON.stringify(action.payload.params || {})}`
@@ -102,7 +103,7 @@ export const useChatStore = defineStore('chat', () => {
     
     // Check if identical action is already processing (mutex)
     if (processingActions.has(actionKey)) {
-      console.log('🔒 Action blocked - identical action already processing')
+      logger.debug('🔒 Action blocked - identical action already processing')
       return { status: 'blocked', message: 'Identical action in progress' }
     }
     
@@ -111,7 +112,7 @@ export const useChatStore = defineStore('chat', () => {
     const lastActionTime = recentActions.get(actionKey) || 0
     
     if (now - lastActionTime < throttleMs) {
-      console.log(`⏸️ Action throttled - ${actionKey} within ${throttleMs}ms window`)
+      logger.debug(`⏸️ Action throttled - ${actionKey} within ${throttleMs}ms window`)
       return { status: 'throttled' }
     }
     
@@ -124,7 +125,7 @@ export const useChatStore = defineStore('chat', () => {
     
     // For cart operations, provide better UX by allowing queue processing
     if (action.payload.toolName === 'add_to_cart' && action.payload.params) {
-      console.log('🛒 Cart action accepted - delegating to cart store')
+      logger.debug('🛒 Cart action accepted - delegating to cart store')
       // Mark action as processing and record timestamp
       processingActions.add(actionKey)
       recentActions.set(actionKey, now)
@@ -256,7 +257,7 @@ export const useChatStore = defineStore('chat', () => {
 
       if (action.type === 'notify' && action.payload.message) {
         // Handle notification (could show toast, etc.)
-        console.log('Notification:', action.payload.message)
+        logger.info('Notification:', action.payload.message)
         return { status: 'success' }
       }
 
@@ -270,7 +271,7 @@ export const useChatStore = defineStore('chat', () => {
     } finally {
       // Always cleanup processing state
       processingActions.delete(actionKey)
-      console.log(`🧹 Action cleanup: Removed ${actionKey} from processing set`)
+      logger.debug(`🧹 Action cleanup: Removed ${actionKey} from processing set`)
     }
   }
 
