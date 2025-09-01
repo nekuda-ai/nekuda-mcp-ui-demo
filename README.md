@@ -100,11 +100,11 @@ Traditional e-commerce agents return only text. MCP-UI enables rich interactions
 
 ### Tool Architecture
 
-**MCP Tools** (`mcp-server/main.py:102-306`)
-- `get_products` - Product catalog with interactive UI
-- `get_cart` - Cart display with modify capabilities  
+**MCP Tools**
+- `get_products` - Product catalog with interactive UI carousel
+- `get_cart_state` - Cart state snapshot (structured data, no UI)  
 - `add_to_cart` - Add items with confirmation UI
-- `checkout` - Purchase flow integration
+- `checkout` - Checkout flow with nekuda payment integration
 
 
 ### Function Calling Flow
