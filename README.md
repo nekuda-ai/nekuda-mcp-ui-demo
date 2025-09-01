@@ -146,6 +146,20 @@ When a user clicks "Place Order," the system executes a single atomic payment op
 
 3. **Merchant Settlement** - Returns the payment credentials along with the cart session ID to the backend for merchant processing
 
+```typescript
+// Atomic payment operation triggered by "Place Order" click
+const mandate_id = await nekuda_service.create_mandate_for_checkout({
+  user_id, cart_total, cart_items, checkout_context
+})
+
+const payment_credentials = await nekuda_service.get_payment_credentials(
+  user_id, mandate_id  
+)
+
+// Credentials returned to backend with cart session for processing
+return { payment_credentials, cart_session_id }
+```
+
 This atomic approach eliminates checkout friction and works with any merchant's headless commerce system.
 
 ## Contact
