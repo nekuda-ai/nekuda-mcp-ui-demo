@@ -456,7 +456,7 @@ const initializeRemoteDomRenderer = async () => {
       htmlContent += '            // Debug: Checking if manual rendering needed\n'
       htmlContent += '            // Debug: Using component name: ' + componentName + '\n'
       htmlContent += '            // Debug: Available functions check\n'
-      htmlContent += '            if (root && root.innerHTML === "") {\n'
+      htmlContent += '            if (root && !window.reactRootCreated) {\n'
       htmlContent += '                // Debug: Creating component element\n'
       htmlContent += '                try {\n'
       htmlContent += '                    const componentElement = React.createElement(' + componentName + ', { onAction });\n'
@@ -464,15 +464,22 @@ const initializeRemoteDomRenderer = async () => {
       htmlContent += '                    root.innerHTML = "";\n'
       htmlContent += '                    const reactRoot = ReactDOM.createRoot(root);\n'
       htmlContent += '                    reactRoot.render(componentElement);\n'
-      htmlContent += '                    // Store root for cleanup\n'
+      htmlContent += '                    // Store root for cleanup and mark as created\n'
       htmlContent += '                    window.reactRoot = reactRoot;\n'
+      htmlContent += '                    window.reactRootCreated = true;\n'
       htmlContent += '                    // Debug: Component rendered manually\n'
       htmlContent += '                } catch (renderError) {\n'
       htmlContent += '                    console.error("Component render error:", renderError);\n'
       htmlContent += '                    root.innerHTML = "<div style=\\"padding: 20px; color: red; text-align: center;\\">❌ Component Render Error: " + renderError.message + "</div>";\n'
       htmlContent += '                }\n'
-      htmlContent += '            } else {\n'
-      htmlContent += '                // Debug: Component already rendered\n'
+      htmlContent += '            } else if (root && window.reactRoot) {\n'
+      htmlContent += '                // Re-render on existing root\n'
+      htmlContent += '                try {\n'
+      htmlContent += '                    const componentElement = React.createElement(' + componentName + ', { onAction });\n'
+      htmlContent += '                    window.reactRoot.render(componentElement);\n'
+      htmlContent += '                } catch (renderError) {\n'
+      htmlContent += '                    console.error("Component re-render error:", renderError);\n'
+      htmlContent += '                }\n'
       htmlContent += '            }\n'
       htmlContent += '            \n'
       htmlContent += '            // Debug: Component rendered successfully\n'
@@ -486,6 +493,7 @@ const initializeRemoteDomRenderer = async () => {
       htmlContent += '                        // Ignore cleanup errors\n'
       htmlContent += '                    }\n'
       htmlContent += '                    window.reactRoot = null;\n'
+      htmlContent += '                    window.reactRootCreated = false;\n'
       htmlContent += '                }\n'
       htmlContent += '            });\n'
       htmlContent += '            \n'
@@ -646,6 +654,7 @@ const cleanup = () => {
             try {
               currentIframe.contentWindow.reactRoot.unmount()
               currentIframe.contentWindow.reactRoot = null
+              currentIframe.contentWindow.reactRootCreated = false
             } catch (reactError) {
               // Ignore React cleanup errors during iframe destruction
             }
