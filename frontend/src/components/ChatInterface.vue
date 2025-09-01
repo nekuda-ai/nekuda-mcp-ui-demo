@@ -3,7 +3,7 @@
     <!-- Messages Container -->
     <div 
       ref="messagesContainer"
-      class="chat-messages scrollbar-none h-full overflow-y-auto pb-[180px] sm:pb-[200px]"
+      class="chat-messages scrollbar-none h-full overflow-y-auto pb-[240px] sm:pb-[260px]"
     >
       <div 
         v-for="message in chatStore.messages"
@@ -59,7 +59,7 @@
         </div>
 
         <!-- Quick Actions -->
-        <div v-if="!chatStore.hasMessages || chatStore.messages.length === 1" class="mt-3 sm:mt-4 flex flex-nowrap gap-1 sm:gap-2 overflow-x-auto scrollbar-none">
+        <div class="mt-3 sm:mt-4 flex flex-nowrap gap-1 sm:gap-2 overflow-x-auto scrollbar-none">
           <button
             v-for="suggestion in quickSuggestions"
             :key="suggestion.text"
