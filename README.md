@@ -136,26 +136,17 @@ This demo shows a unified payment architecture. Today, commerce MCPs provide cat
 - Dynamic CVV (DTVV) generated per transaction
 - True one-click checkout across ecosystems
 
-### Payment Flow
+### Payment Flow - The Atomic Action
 
-```typescript
-// 1. User clicks checkout → Create payment mandate
-const mandate = await nekuda_service.create_mandate_for_checkout({
-  user_id, cart_total, cart_items, checkout_context
-})
+When a user clicks "Place Order," the system executes a single atomic payment operation:
 
-// 2. Retrieve network token + DTVV  
-const payment_data = await nekuda_service.get_payment_credentials(
-  user_id, mandate_id
-)
+1. **Payment Authorization** - Creates a mandate capturing the user's explicit approval for this specific purchase and amount, stored securely with nekuda service
 
-// 3. Send to headless merchant store
-await merchant.checkout({
-  cart_id,
-  network_token: payment_data.token,
-  dtvv: payment_data.cvv  // Dynamic CVV
-})
-```
+2. **Credential Generation** - Retrieves a short-lived payment token, then exchanges it for payment credentials (network token or PAN)
+
+3. **Merchant Settlement** - Returns the payment credentials along with the cart session ID to the backend for merchant processing
+
+This atomic approach eliminates checkout friction and works with any merchant's headless commerce system.
 
 ## Contact
 
