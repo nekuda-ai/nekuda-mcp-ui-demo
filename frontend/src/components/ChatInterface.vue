@@ -59,13 +59,13 @@
         </div>
 
         <!-- Quick Actions -->
-        <div v-if="!chatStore.hasMessages || chatStore.messages.length === 1" class="mt-3 sm:mt-4 flex flex-wrap gap-2">
+        <div v-if="!chatStore.hasMessages || chatStore.messages.length === 1" class="mt-3 sm:mt-4 flex flex-nowrap gap-1 sm:gap-2 overflow-x-auto scrollbar-none">
           <button
             v-for="suggestion in quickSuggestions"
             :key="suggestion.text"
             @click="sendQuickMessage(suggestion.text)"
             :disabled="chatStore.isLoading"
-            class="px-3 sm:px-4 py-2 sm:py-2.5 bg-[#1e1e20] hover:bg-[#2a2a2d] border border-[#2a2a2d] hover:border-[#00D2FF]/30 text-white/80 hover:text-white text-xs sm:text-sm rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(0,210,255,0.1)] font-medium min-h-touch"
+            class="px-2 sm:px-3 py-2 sm:py-2.5 bg-[#1e1e20] hover:bg-[#2a2a2d] border border-[#2a2a2d] hover:border-[#00D2FF]/30 text-white/80 hover:text-white text-xs rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(0,210,255,0.1)] font-medium min-h-touch whitespace-nowrap flex-shrink-0"
           >
             {{ suggestion.text }}
           </button>
@@ -102,9 +102,9 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
 const quickSuggestions = [
   { text: 'Show me NBA jerseys' },
-  { text: 'Show me LeBron jersey' },
-  { text: 'Show me Jordan jersey' },
-  { text: 'View my cart' }
+  { text: 'Show me all products' },
+  { text: 'Show me Curry jersey' },
+  { text: 'What basketballs do you have?' }
 ]
 
 const sendMessage = async () => {

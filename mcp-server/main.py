@@ -274,6 +274,33 @@ async def mcp_endpoint(raw_request: Dict[str, Any]):
                     }
                 ),
                 MCPTool(
+                    name="get_basketballs",
+                    description="Get all premium basketballs with interactive UI carousel showing official NBA balls, training balls, and outdoor basketballs",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": False
+                    }
+                ),
+                MCPTool(
+                    name="get_spalding_official_ball",
+                    description="Show Spalding NBA Official Game Ball - the authentic ball used in NBA games",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": False
+                    }
+                ),
+                MCPTool(
+                    name="get_wilson_basketball",
+                    description="Show Wilson NBA Official Game Basketball - premium Wilson basketball with composite leather",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": False
+                    }
+                ),
+                MCPTool(
                     name="get_giannis_jersey",
                     description="Show Giannis Antetokounmpo Bucks Jersey #34 with detailed view and Greek Freak achievements",
                     inputSchema={
@@ -455,29 +482,49 @@ async def mcp_endpoint(raw_request: Dict[str, Any]):
                 # Filter to show only NBA jerseys
                 arguments["category"] = "nba-jerseys"
                 return await handle_get_products_remote_dom(request.id, arguments)
+            elif tool_name == "get_basketballs":
+                # Filter to show only basketballs
+                arguments["category"] = "college-basketball"
+                return await handle_get_products_remote_dom(request.id, arguments)
+            elif tool_name == "get_spalding_official_ball":
+                # Use detailed product view for Spalding official ball
+                arguments["product_id"] = "spalding-nba-official-game-ball"
+                arguments["source_tool"] = "get_basketballs"
+                return await handle_get_product_details_remote_dom(request.id, arguments)
+            elif tool_name == "get_wilson_basketball":
+                # Use detailed product view for Wilson basketball
+                arguments["product_id"] = "wilson-nba-official-basketball"
+                arguments["source_tool"] = "get_basketballs"
+                return await handle_get_product_details_remote_dom(request.id, arguments)
             elif tool_name == "get_lebron_jersey":
                 # Use detailed product view for individual jersey
                 arguments["product_id"] = "lebron-lakers-jersey" 
+                arguments["source_tool"] = "get_nba_jerseys"
                 return await handle_get_product_details_remote_dom(request.id, arguments)
             elif tool_name == "get_jordan_jersey":
                 # Use detailed product view for individual jersey
                 arguments["product_id"] = "jordan-bulls-jersey"
+                arguments["source_tool"] = "get_nba_jerseys"
                 return await handle_get_product_details_remote_dom(request.id, arguments)
             elif tool_name == "get_curry_jersey":
                 # Use detailed product view for individual jersey
                 arguments["product_id"] = "curry-warriors-jersey"
+                arguments["source_tool"] = "get_nba_jerseys"
                 return await handle_get_product_details_remote_dom(request.id, arguments)
             elif tool_name == "get_giannis_jersey":
                 # Use detailed product view for individual jersey
                 arguments["product_id"] = "giannis-bucks-jersey"
+                arguments["source_tool"] = "get_nba_jerseys"
                 return await handle_get_product_details_remote_dom(request.id, arguments)
             elif tool_name == "get_luka_jersey":
                 # Use detailed product view for individual jersey
                 arguments["product_id"] = "luka-mavs-jersey"
+                arguments["source_tool"] = "get_nba_jerseys"
                 return await handle_get_product_details_remote_dom(request.id, arguments)
             elif tool_name == "get_tatum_jersey":
                 # Use detailed product view for individual jersey
                 arguments["product_id"] = "tatum-celtics-jersey"
+                arguments["source_tool"] = "get_nba_jerseys"
                 return await handle_get_product_details_remote_dom(request.id, arguments)
             
             # Quote Management Tools

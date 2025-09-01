@@ -488,6 +488,12 @@ async def get_mcp_tools() -> List[Dict[str, Any]]:
                     description = "Get all available products with interactive UI carousel. ALWAYS use this function when the user asks to see, browse, show, or view products. IMPORTANT: Do NOT specify a category parameter - always call this function without any parameters to show all products. Our store specializes in NBA jerseys from legendary players."
                 elif tool.get("name") == "get_nba_jerseys":
                     description = "Show all NBA jerseys with interactive UI carousel. Use this when user asks to see NBA jerseys, basketball jerseys, or sports jerseys."
+                elif tool.get("name") == "get_basketballs":
+                    description = "Show all premium basketballs with interactive UI carousel. Use when user asks about basketballs, official NBA balls, training balls, outdoor basketballs, or basketball equipment."
+                elif tool.get("name") == "get_spalding_official_ball":
+                    description = "Show Spalding NBA Official Game Ball with detailed view. Use when user asks about official NBA ball, Spalding official ball, or premium basketball."
+                elif tool.get("name") == "get_wilson_basketball":
+                    description = "Show Wilson NBA Official Game Basketball with detailed view. Use when user asks about Wilson basketball or Wilson official ball."
                 elif tool.get("name") == "get_lebron_jersey":
                     description = "Show LeBron James Lakers Jersey #6 with detailed view. Use when user asks about LeBron, Lakers, or King James jersey."
                 elif tool.get("name") == "get_jordan_jersey":
@@ -601,7 +607,7 @@ async def chat_endpoint(chat_request: ChatRequest, request: Request):
         openai_messages = [
             {
                 "role": "system", 
-                "content": "You are a helpful NBA jersey store assistant. Our store specializes in authentic NBA jerseys from legendary superstars like LeBron James, Stephen Curry, Giannis, Luka Dončić, Jayson Tatum, and Michael Jordan. You have access to tools to show real product data and interactive UI components with hover effects. IMPORTANT: ALWAYS use the appropriate tools - never generate fake content. Available tools: get_products (all products), get_nba_jerseys (NBA only), get_lebron_jersey, get_jordan_jersey, get_curry_jersey (specific jerseys), get_product_details, add_to_cart, and checkout. When users ask to see specific jerseys, use the dedicated jersey tools. When they ask to see/view/show/check their cart, tell them to use the shopping cart icon in the top right corner of the page - do not try to display cart contents yourself. Be enthusiastic about basketball and our jerseys!"
+                "content": "You are a helpful basketball store assistant managing TWO specialized stores: \n\n1. **NBA Jersey Store** - Authentic NBA jerseys from legendary superstars like LeBron James, Stephen Curry, Giannis, Luka Dončić, Jayson Tatum, and Michael Jordan.\n\n2. **Basketball Equipment Store** - Premium basketballs from top brands including Spalding NBA Official Game Ball ($219.95), Wilson NBA Official Basketball ($124.95), training balls, and outdoor basketballs.\n\nYou have access to tools to show real product data and interactive UI components. IMPORTANT: ALWAYS use the appropriate tools - never generate fake content.\n\n**Available tools:**\n- get_products (all products from both stores)\n- get_nba_jerseys (NBA jerseys only) \n- get_basketballs (basketball equipment only)\n- get_spalding_official_ball, get_wilson_basketball (specific basketballs)\n- get_lebron_jersey, get_jordan_jersey, get_curry_jersey (specific jerseys)\n- get_product_details, add_to_cart, and checkout\n\n**Routing Guidelines:**\n- NBA/jersey requests → NBA jersey tools\n- Basketball/ball/equipment requests → Basketball equipment tools  \n- General/browse requests → get_products (shows both stores)\n\nWhen users ask to check their cart, direct them to the shopping cart icon in the top right corner. Be enthusiastic about basketball and help customers discover the right products from the appropriate store!"
             }
         ]
         

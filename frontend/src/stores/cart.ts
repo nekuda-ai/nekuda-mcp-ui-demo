@@ -45,14 +45,22 @@ interface Quote {
 }
 
 export const useCartStore = defineStore('cart', () => {
-  // Product icon and color mapping (NBA jerseys)
+  // Product icon and color mapping (NBA jerseys + College basketball)
   const PRODUCT_META = {
+    // NBA Store
     'lebron-lakers-jersey': { icon: '👑', color: '#552583' },
     'curry-warriors-jersey': { icon: '🏹', color: '#1D428A' },
     'giannis-bucks-jersey': { icon: '🇬🇷', color: '#00471B' },
     'luka-mavs-jersey': { icon: '🏀', color: '#00538C' },
     'tatum-celtics-jersey': { icon: '☘️', color: '#007A33' },
-    'jordan-bulls-jersey': { icon: '🐐', color: '#CE1141' }
+    'jordan-bulls-jersey': { icon: '🐐', color: '#CE1141' },
+    // Basketball Store
+    'spalding-nba-official-game-ball': { icon: '🏆', color: '#B8860B' },
+    'wilson-nba-official-basketball': { icon: '⚡', color: '#FF4500' },
+    'spalding-nba-indoor-outdoor': { icon: '🏀', color: '#FF8C00' },
+    'nike-elite-championship': { icon: '✨', color: '#000000' },
+    'spalding-tf-trainer': { icon: '💪', color: '#4169E1' },
+    'nike-playground-basketball': { icon: '🌟', color: '#32CD32' }
   } as Record<string, { icon: string; color: string }>
 
   // State - Server-authoritative, no localStorage

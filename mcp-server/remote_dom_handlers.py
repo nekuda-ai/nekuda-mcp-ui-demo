@@ -152,7 +152,7 @@ async def handle_get_products_remote_dom(request_id: str | int, arguments: Dict[
             "store": product.store,  # Store identifier for ticker display
             "variant_id": first_variant.id if first_variant else "",
             # 🏀 Add jersey image and NBA fields  
-            "image_filename": product.image_url.split('/')[-1] if product.image_url else 'placeholder.jpg',
+            "image_filename": product.image_url.split('/media/')[-1] if product.image_url and '/media/' in product.image_url else 'placeholder.jpg',
             "highlight_gif": product.highlight_gif,
             "player_stats": product.player_stats
         })
@@ -161,6 +161,7 @@ async def handle_get_products_remote_dom(request_id: str | int, arguments: Dict[
     script = f"""
 // MCP-UI React Remote DOM Component
 const products = {json.dumps(products_data)};
+const currentCategory = {json.dumps(category)};
 
 // Add CSS animation for store ticker
 if (!document.querySelector('#store-ticker-animation')) {{
@@ -239,16 +240,16 @@ function ProductNavigator() {{
     }}, []);
 
     const handleViewDetails = (productId) => {{
-        // Use specific jersey tools for main NBA jerseys, or filtered products for others
+        // Use specific jersey tools for main NBA jerseys, or context-aware product details for others
         let toolName = 'get_product_details';
         let params = {{ product_id: productId }};
         
-        // Check if this is an NBA jersey - if so, use unified carousel component
+        // Check if this is an NBA jersey - if so, use specific jersey tools
         const nbaJerseys = ['lebron-lakers-jersey', 'jordan-bulls-jersey', 'curry-warriors-jersey', 
                            'giannis-bucks-jersey', 'luka-mavs-jersey', 'tatum-celtics-jersey'];
         
         if (nbaJerseys.includes(productId)) {{
-            // For NBA jerseys, use specific tools or filtered carousel
+            // For NBA jerseys, use specific tools (which already have source_tool set)
             if (productId === 'lebron-lakers-jersey') {{
                 toolName = 'get_lebron_jersey';
                 params = {{}};
@@ -268,9 +269,29 @@ function ProductNavigator() {{
                 toolName = 'get_tatum_jersey';
                 params = {{}};
             }} else {{
-                // Other NBA jerseys use detailed product view
+                // Other NBA jerseys use detailed product view with context
                 toolName = 'get_product_details';
-                params = {{ product_id: productId }};
+                params = {{ product_id: productId, source_tool: currentCategory === 'nba-jerseys' ? 'get_nba_jerseys' : 'get_products' }};
+            }}
+        }} else {{
+            // For non-NBA products, check for specific basketball tools first
+            if (productId === 'spalding-nba-official-game-ball') {{
+                toolName = 'get_spalding_official_ball';
+                params = {{}};
+            }} else if (productId === 'wilson-nba-official-basketball') {{
+                toolName = 'get_wilson_basketball';
+                params = {{}};
+            }} else {{
+                // Other products use detailed product view with context
+                let sourceUrl = 'get_products'; // Default
+                if (currentCategory === 'college-basketball') {{
+                    sourceUrl = 'get_basketballs';
+                }} else if (currentCategory === 'nba-jerseys') {{
+                    sourceUrl = 'get_nba_jerseys';
+                }}
+                
+                toolName = 'get_product_details';
+                params = {{ product_id: productId, source_tool: sourceUrl }};
             }}
         }}
         
@@ -1116,6 +1137,7 @@ function OrderConfirmation({{ onAction }}) {{
 async def handle_get_product_details_remote_dom(request_id: str | int, arguments: Dict[str, Any]) -> MCPResponse:
     """Handle get_product_details with remote-dom"""
     product_id = arguments.get("product_id")
+    source_tool = arguments.get("source_tool", "get_products")  # Default back to all products
     product = products.get(product_id)
     if not product:
         return MCPResponse(
@@ -1171,7 +1193,7 @@ function ProductDetails() {{
         window.parent.postMessage({{
             type: 'tool',
             payload: {{
-                toolName: 'get_products',
+                toolName: '{source_tool}',
                 params: {{}}
             }}
         }}, '*');

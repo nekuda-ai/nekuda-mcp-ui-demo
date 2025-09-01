@@ -258,7 +258,7 @@ export const useChatStore = defineStore('chat', () => {
       const welcomeMessage: ChatMessage = {
         id: 'welcome',
         role: 'assistant',
-        content: '🏀 Welcome to our NBA Jersey Store! Browse legendary jerseys from superstars like LeBron, Curry, Jordan, and more. Each jersey features interactive highlight GIFs on hover! Try "show me NBA jerseys" or "show me all products".',
+        content: '🏀 Welcome to our NBA store! We sell NBA jerseys and basketballs from stars like LeBron, Curry, and Jordan.',
         timestamp: new Date()
       }
       addMessage(welcomeMessage)

@@ -47,6 +47,12 @@ CATEGORY_METADATA = {
         "description": "Authentic NBA player jerseys from legendary superstars",
         "icon": "🏀",
         "color": "#FF6B35"
+    },
+    "college-basketball": {
+        "name": "Basketball Equipment",
+        "description": "Premium basketballs from Spalding, Wilson, and Nike - Official NBA balls, training balls, and outdoor basketballs",
+        "icon": "🏀",
+        "color": "#FF8C00"
     }
 }
 
@@ -60,7 +66,7 @@ PRODUCT_DEFINITIONS = [
         "id": "lebron-lakers-jersey",
         "name": "LeBron James Lakers Jersey #6",
         "category": "nba-jerseys", 
-        "store": "nba.demo.store",
+        "store": "jersey.store",
         "price": 149.99,
         "description": "Official Los Angeles Lakers jersey worn by the King himself. Features premium stitching, authentic team colors, and the iconic #6. Perfect for showing your Lakers pride and basketball legacy.",
         "image_filename": "lebron-lakers-home.jpg",
@@ -79,7 +85,7 @@ PRODUCT_DEFINITIONS = [
         "id": "curry-warriors-jersey", 
         "name": "Stephen Curry Warriors Jersey #30",
         "category": "nba-jerseys",
-        "store": "nba.demo.store",
+        "store": "jersey.store",
         "price": 139.99,
         "description": "Golden State Warriors jersey of the greatest shooter in NBA history. Features the iconic #30 and championship-winning team colors. Represent the 3-point revolution.",
         "image_filename": "curry-warriors-home.jpg",
@@ -98,7 +104,7 @@ PRODUCT_DEFINITIONS = [
         "id": "giannis-bucks-jersey",
         "name": "Giannis Antetokounmpo Bucks Jersey #34",
         "category": "nba-jerseys",
-        "store": "nba.demo.store",
+        "store": "jersey.store",
         "price": 134.99,
         "description": "Milwaukee Bucks jersey of the Greek Freak. Features the championship-winning #34 and represents the heart of Milwaukee basketball. Wear the jersey of a true superstar.",
         "image_filename": "giannis-bucks-home.jpg",
@@ -117,7 +123,7 @@ PRODUCT_DEFINITIONS = [
         "id": "luka-mavs-jersey",
         "name": "Luka Dončić Mavericks Jersey #77",
         "category": "nba-jerseys",
-        "store": "nba.demo.store",
+        "store": "jersey.store",
         "price": 124.99,
         "description": "Dallas Mavericks jersey of the Slovenian sensation. Features the unique #77 and represents the future of basketball. Join the Luka Magic phenomenon.",
         "image_filename": "luka-mavs-home.jpg",
@@ -136,7 +142,7 @@ PRODUCT_DEFINITIONS = [
         "id": "tatum-celtics-jersey",
         "name": "Jayson Tatum Celtics Jersey #0",
         "category": "nba-jerseys",
-        "store": "nba.demo.store",
+        "store": "jersey.store",
         "price": 144.99,
         "description": "Boston Celtics jersey of the rising superstar. Features the iconic #0 and the legendary green of 18-time NBA champions. Represent Celtic pride and championship tradition.",
         "image_filename": "tatum-celtics-home.jpg",
@@ -155,7 +161,7 @@ PRODUCT_DEFINITIONS = [
         "id": "jordan-bulls-jersey",
         "name": "Michael Jordan Bulls Jersey #23",
         "category": "nba-jerseys",
-        "store": "nba.demo.store",
+        "store": "jersey.store",
         "price": 299.99,
         "description": "Chicago Bulls jersey of the GOAT. The legendary #23 that defined basketball greatness. A timeless piece of sports history that transcends generations.",
         "image_filename": "jordan-bulls-home.jpg",
@@ -169,6 +175,110 @@ PRODUCT_DEFINITIONS = [
         ],
         "icon": "🐐",
         "color": "#CE1141"  # Bulls red
+    },
+    
+    # 🏀 BASKETBALL COLLECTION - PREMIUM BASKETBALLS
+    {
+        "id": "spalding-nba-official-game-ball",
+        "name": "Spalding NBA Official Game Ball",
+        "category": "college-basketball",
+        "store": "basketball.store",
+        "price": 219.95,
+        "description": "The authentic ball used in NBA games. Features premium leather construction with official NBA logo and Adam Silver signature. Perfect grip and bounce for serious players.",
+        "image_filename": "college/8ia3FzCOnP6X.jpeg",
+        "player_stats": "Official NBA Game Ball - Premium Quality",
+        "variants": [
+            {"id": "official-size", "name": "Official Size 7", "price_modifier": 0.0},
+            {"id": "youth-size", "name": "Youth Size 6", "price_modifier": -20.0},
+            {"id": "junior-size", "name": "Junior Size 5", "price_modifier": -30.0}
+        ],
+        "icon": "🏆",
+        "color": "#B8860B"  # Gold
+    },
+    {
+        "id": "wilson-nba-official-basketball",
+        "name": "Wilson NBA Official Game Basketball",
+        "category": "college-basketball",
+        "store": "basketball.store",
+        "price": 124.95,
+        "description": "Wilson's premium NBA official basketball with composite leather construction. Excellent indoor performance with superior grip and durability.",
+        "image_filename": "college/9VOACHn4CgPd.jpg",
+        "player_stats": "Official NBA Partner - Wilson Quality",
+        "variants": [
+            {"id": "official-size", "name": "Official Size 7", "price_modifier": 0.0},
+            {"id": "premium-version", "name": "Premium Version", "price_modifier": 95.0},
+            {"id": "youth-size", "name": "Youth Size 6", "price_modifier": -25.0}
+        ],
+        "icon": "⚡",
+        "color": "#FF4500"  # Wilson orange
+    },
+    {
+        "id": "spalding-nba-indoor-outdoor",
+        "name": "Spalding NBA Indoor/Outdoor Basketball",
+        "category": "college-basketball",
+        "store": "basketball.store",
+        "price": 39.95,
+        "description": "Versatile basketball suitable for both indoor and outdoor play. Durable composite leather construction with official NBA branding. Great all-around performance.",
+        "image_filename": "college/BAJtXEFoPJsT.jpeg",
+        "player_stats": "Versatile Performance - Indoor/Outdoor",
+        "variants": [
+            {"id": "standard", "name": "Standard", "price_modifier": 0.0},
+            {"id": "premium", "name": "Premium Version", "price_modifier": 20.0},
+            {"id": "youth", "name": "Youth Size", "price_modifier": -10.0}
+        ],
+        "icon": "🏀",
+        "color": "#FF8C00"  # Spalding orange
+    },
+    {
+        "id": "nike-elite-championship",
+        "name": "Nike Elite Championship Basketball",
+        "category": "college-basketball",
+        "store": "basketball.store",
+        "price": 79.95,
+        "description": "Premium Nike basketball with championship-level performance. Features Nike's advanced grip technology and superior bounce consistency. Stylish design with gold accents.",
+        "image_filename": "college/fnCi53yyecP8.jpeg",
+        "player_stats": "Championship Performance - Nike Elite",
+        "variants": [
+            {"id": "standard", "name": "Standard", "price_modifier": 0.0},
+            {"id": "premium", "name": "Premium Gold Edition", "price_modifier": 20.0},
+            {"id": "limited", "name": "Limited Edition", "price_modifier": 40.0}
+        ],
+        "icon": "✨",
+        "color": "#000000"  # Nike black
+    },
+    {
+        "id": "spalding-tf-trainer",
+        "name": "Spalding TF-Trainer Basketball",
+        "category": "college-basketball",
+        "store": "basketball.store",
+        "price": 24.95,
+        "description": "Training basketball designed for skill development. Excellent for practice sessions and training drills. Durable construction for heavy use.",
+        "image_filename": "college/LiTj2TDcgX1x.png",
+        "player_stats": "Training Focus - Skill Development",
+        "variants": [
+            {"id": "standard", "name": "Standard", "price_modifier": 0.0},
+            {"id": "heavy-duty", "name": "Heavy Duty", "price_modifier": 10.0},
+            {"id": "youth", "name": "Youth Training", "price_modifier": -5.0}
+        ],
+        "icon": "💪",
+        "color": "#4169E1"  # Royal blue
+    },
+    {
+        "id": "nike-playground-basketball",
+        "name": "Nike Playground Basketball",
+        "category": "college-basketball",
+        "store": "basketball.store",
+        "price": 19.95,
+        "description": "Durable outdoor basketball built for street play. Tough rubber construction withstands concrete courts. Great value for recreational outdoor play.",
+        "image_filename": "college/W375uJfgMTKm.jpg",
+        "player_stats": "Street Ready - Outdoor Durability",
+        "variants": [
+            {"id": "standard", "name": "Standard", "price_modifier": 0.0},
+            {"id": "all-weather", "name": "All-Weather", "price_modifier": 10.0},
+            {"id": "youth", "name": "Youth Size", "price_modifier": -5.0}
+        ],
+        "icon": "🌟",
+        "color": "#32CD32"  # Lime green
     }
 ]
 
