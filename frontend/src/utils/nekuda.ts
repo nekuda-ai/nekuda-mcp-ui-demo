@@ -62,31 +62,6 @@ export const atomicNekudaCheckout = async (
   }
 }
 
-/**
- * DEPRECATED: Use atomicNekudaCheckout instead
- * Request payment data from Nekuda via our backend
- * This fetches the token and PAN needed for checkout
- */
-export const getNekudaPaymentData = async (
-  userId: string,
-  cartTotal: number,
-  cartItems: any[]
-): Promise<NekudaPaymentData> => {
-  try {
-    const response = await axios.post('/api/get-nekuda-payment', {
-      userId,
-      cartTotal,
-      cartItems,
-      product: 'E-commerce Purchase',
-      currency: 'USD'
-    })
-    
-    return response.data
-  } catch (error) {
-    console.error('Failed to get Nekuda payment data:', error)
-    throw new Error('Failed to retrieve payment credentials')
-  }
-}
 
 /**
  * Check if user has stored payment methods in Nekuda wallet
@@ -149,7 +124,6 @@ export const getMockNekudaPaymentData = (): Promise<NekudaPaymentData> => {
 }
 
 export default {
-  getNekudaPaymentData,
   hasStoredPaymentMethods,
   initializeNekudaPaymentCollection,
   getMockNekudaPaymentData

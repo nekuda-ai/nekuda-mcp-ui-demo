@@ -370,7 +370,6 @@ openai_client = openai.AsyncOpenAI(api_key=settings.openai_api_key)
 
 # Enhanced session storage with metadata
 chat_sessions: Dict[str, List[ChatMessage]] = {}
-user_sessions: Dict[str, Dict[str, Any]] = {}
 session_metadata: Dict[str, Dict[str, Any]] = {}
 
 
@@ -384,7 +383,6 @@ def get_session_id(request: Request) -> str:
         session_id = str(uuid.uuid4())
         request.session["session_id"] = session_id
         chat_sessions[session_id] = []
-        user_sessions[session_id] = {"created_at": current_time}
         session_metadata[session_id] = {
             "created_at": current_time,
             "last_accessed": current_time,
@@ -425,7 +423,6 @@ def cleanup_expired_sessions():
     # Clean up expired sessions
     for session_id in expired_sessions:
         chat_sessions.pop(session_id, None)
-        user_sessions.pop(session_id, None)
         session_metadata.pop(session_id, None)
         logger.info(f"Cleaned up expired session: {session_id}")
     
@@ -1231,31 +1228,6 @@ async def atomic_nekuda_checkout(checkout_request: AtomicCheckoutRequest):
             detail=f"Atomic checkout failed: {str(e)}"
         )
 
-@app.post("/api/get-nekuda-payment")
-async def get_nekuda_payment(checkout_request: CheckoutRequest):
-    """
-    DEPRECATED: Use atomic-nekuda-checkout instead
-    This endpoint is kept for backward compatibility
-    """
-    try:
-        payment_data = await get_nekuda_service().complete_checkout_flow(checkout_request)
-        
-        return {
-            "success": True,
-            "token": payment_data.token,
-            "pan": payment_data.pan,
-            "expiryMonth": payment_data.expiry_month,
-            "expiryYear": payment_data.expiry_year,
-            "cvv": payment_data.cvv,
-            "cardholderName": payment_data.cardholder_name
-        }
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve Nekuda payment data: {str(e)}"
-        )
-
 
 @app.get("/api/nekuda-wallet-status")
 async def get_nekuda_wallet_status(userId: str):
@@ -1341,46 +1313,6 @@ async def mark_payment_added(request_data: Dict[str, Any]):
             detail=f"Failed to mark payment method: {str(e)}"
         )
 
-
-async def process_merchant_payment(
-    payment_credentials, 
-    amount: float, 
-    currency: str, 
-    order_details: List[Dict[str, Any]]
-) -> Dict[str, Any]:
-    """
-    Process payment with merchant API using Nekuda credentials
-    This is a mock implementation - replace with actual payment processor integration
-    """
-    try:
-        # Mock successful payment processing
-        order_id = f"order_{uuid.uuid4().hex[:8]}"
-        
-        logger.info(f"Processing payment: ${amount} {currency} for order {order_id}")
-        logger.info(f"Processing card payment for order {order_id}")
-        
-        # In real implementation, you would:
-        # 1. Call your payment processor API
-        # 2. Use the payment_credentials (PAN, expiry, CVV, etc.)
-        # 3. Handle payment processor responses
-        # 4. Return actual success/failure status
-        
-        return {
-            "success": True,
-            "order_id": order_id,
-            "transaction_id": f"txn_{uuid.uuid4().hex[:8]}",
-            "amount_charged": amount,
-            "currency": currency
-        }
-        
-    except Exception as e:
-        logger.error(f"Payment processing failed: {e}")
-        return {
-            "success": False,
-            "error": str(e),
-            "order_id": "",
-            "transaction_id": ""
-        }
 
 
 @app.post("/api/nekuda-checkout", response_model=NekudaCheckoutResponse)
