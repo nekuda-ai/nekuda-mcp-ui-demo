@@ -25,7 +25,7 @@
           <div class="flex-1 min-w-0">
             <h4 class="text-sm font-semibold text-white break-words leading-tight">{{ item.name }}</h4>
             <p class="text-sm text-white/60 mt-1 truncate">{{ item.variant }}</p>
-            <p class="text-sm font-semibold text-[#00D2FF] mt-1">${{ item.price.toFixed(2) }}</p>
+            <p class="text-sm font-semibold text-[#00D2FF] mt-1">${{ (item.price || 0).toFixed(2) }}</p>
           </div>
 
           <!-- Remove Button -->
@@ -70,7 +70,7 @@
 
           <!-- Item Total -->
           <div class="text-base font-bold text-gradient-primary">
-            ${{ (item.price * item.quantity).toFixed(2) }}
+            ${{ ((item.price || 0) * item.quantity).toFixed(2) }}
           </div>
         </div>
       </div>

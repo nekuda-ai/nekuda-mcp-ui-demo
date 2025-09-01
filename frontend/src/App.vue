@@ -220,7 +220,9 @@ const showMobileMenu = ref(false)
 const showAbout = ref(false)
 
 onMounted(async () => {
-  // Initialize chat with welcome message and sync cart from server
+  // Initialize cart session first
+  await cartStore.initializeCartSession()
+  // Initialize chat with welcome message
   await chatStore.initializeChat()
 })
 </script>

@@ -790,13 +790,18 @@ async def chat_endpoint(chat_request: ChatRequest, request: Request):
 @app.post("/mcp-action")
 async def mcp_action_endpoint(action_request: MCPActionRequest, request: Request):
     """Handle direct MCP tool calls from the frontend"""
-    # Use session_id from request if provided, otherwise get from request headers/cookies
-    session_id = action_request.session_id or get_session_id(request)
+    # Use the agent's session ID for chat history
+    agent_session_id = get_session_id(request)
+    # The cart_id is passed in the request body
+    cart_id = action_request.session_id
     
+    if not cart_id:
+        raise HTTPException(status_code=400, detail="cart_id (as session_id) is required for MCP actions")
+
     try:
-        # Add session_id to params for MCP tools that need it
+        # Add cart_id to params for MCP tools that need it
         params_with_session = action_request.params.copy() if action_request.params else {}
-        params_with_session["session_id"] = session_id
+        params_with_session["session_id"] = cart_id
         
         mcp_response = await call_mcp_tool(
             action_request.tool_name,
@@ -812,7 +817,7 @@ async def mcp_action_endpoint(action_request: MCPActionRequest, request: Request
                 detail=f"MCP tool error: {error_msg}"
             )
         
-        # Add this action to chat history for context
+        # Add this action to the agent's chat history for context
         ui_resource = None
         result = mcp_response.get("result")
         if result and isinstance(result, dict):
@@ -831,11 +836,11 @@ async def mcp_action_endpoint(action_request: MCPActionRequest, request: Request
         
         action_message = ChatMessage(
             role="assistant",
-            content=f"Processed {action_request.tool_name} action",
+            content=f"Processed {action_request.tool_name} action for cart {cart_id}",
             timestamp=datetime.utcnow(),
             ui_resource=ui_resource
         )
-        chat_sessions[session_id].append(action_message)
+        chat_sessions[agent_session_id].append(action_message)
         
         return mcp_response
         

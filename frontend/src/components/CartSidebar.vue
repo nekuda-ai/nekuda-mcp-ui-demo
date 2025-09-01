@@ -59,8 +59,8 @@
           <!-- Cart Items -->
           <div class="p-4 sm:p-6 space-y-4">
             <CartItem 
-              v-for="item in cartStore.items"
-              :key="item.id"
+              v-for="item in cartStore.items.filter(item => item && item.id && item.price != null)"
+              :key="`cart-${item.id}-${item.quantity}`"
               :item="item"
               @update-quantity="updateQuantity"
               @remove="removeItem"

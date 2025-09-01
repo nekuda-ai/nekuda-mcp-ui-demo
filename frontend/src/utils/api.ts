@@ -12,6 +12,17 @@ const getAPIBaseURL = () => {
 
 const API_BASE_URL = getAPIBaseURL()
 
+const getMCPServerBaseURL = () => {
+  const envURL = import.meta.env.VITE_MCP_SERVER_URL || 'http://localhost:3003'
+  // If it's just a hostname, add https://
+  if (!envURL.startsWith('http://') && !envURL.startsWith('https://')) {
+    return `https://${envURL}`
+  }
+  return envURL
+}
+
+const MCP_SERVER_URL = getMCPServerBaseURL()
+
 class APIError extends Error {
   constructor(message: string, public status?: number) {
     super(message)
@@ -19,8 +30,8 @@ class APIError extends Error {
   }
 }
 
-async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`
+async function fetchAPI<T>(baseUrl: string, endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${baseUrl}${endpoint}`
   
   const config: RequestInit = {
     headers: {
@@ -67,22 +78,30 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
   }
 }
 
+export const serverApi = {
+  async createCartSession(): Promise<{ session_id: string }> {
+    return fetchAPI<{ session_id: string }>(MCP_SERVER_URL, '/sessions', {
+      method: 'POST',
+    });
+  },
+}
+
 export const chatApi = {
   async sendMessage(request: ChatRequest): Promise<ChatResponse> {
-    return fetchAPI<ChatResponse>('/chat', {
+    return fetchAPI<ChatResponse>(API_BASE_URL, '/chat', {
       method: 'POST',
       body: JSON.stringify(request),
     })
   },
 
   async mcpAction(request: MCPActionRequest): Promise<any> {
-    return fetchAPI<any>('/mcp-action', {
+    return fetchAPI<any>(API_BASE_URL, '/mcp-action', {
       method: 'POST',
       body: JSON.stringify(request),
     })
   },
 
   async getHealth(): Promise<{ status: string }> {
-    return fetchAPI<{ status: string }>('/health')
+    return fetchAPI<{ status: string }>(API_BASE_URL, '/health')
   }
 }

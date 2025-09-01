@@ -578,6 +578,19 @@ async def mcp_endpoint(raw_request: Dict[str, Any]):
             **error_response
         )
 
+@app.post("/sessions")
+async def create_session():
+    """Create a new cart session and return a session ID"""
+    session_id = str(uuid.uuid4())
+    # Initialize the session with an empty cart and other necessary structures
+    carts[session_id] = {
+        "items": [],
+        "total": 0.0,
+        "currency": "USD"
+    }
+    logger.info(f"Created new session: {session_id}")
+    return {"session_id": session_id}
+
 # Quote Management Handler Functions
 async def handle_create_or_update_quote(request_id: str, arguments: Dict[str, Any]) -> MCPResponse:
     """Handle create or update quote MCP tool call"""

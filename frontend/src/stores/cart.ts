@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { CartItem } from '@/types'
-import { chatApi } from '@/utils/api'
+import { chatApi, serverApi } from '@/utils/api'
+import { getCartId, setCartId } from '@/utils/cartId'
 import { cartOperationsQueue } from '@/utils/asyncQueue'
 import axios from 'axios'
 
@@ -67,6 +68,7 @@ export const useCartStore = defineStore('cart', () => {
   const items = ref<CartItem[]>([])
   const isOpen = ref(false)
   const isAutoOpening = ref(false)
+  const cartId = ref<string | null>(getCartId())
   
   // Optimistic state management
   const backupItems = ref<CartItem[]>([])
@@ -82,11 +84,11 @@ export const useCartStore = defineStore('cart', () => {
   
   // Simple debounced sync for demo
   let syncTimeout: NodeJS.Timeout | null = null
-  const debouncedSync = (sessionId?: string) => {
+  const debouncedSync = () => {
     if (syncTimeout) clearTimeout(syncTimeout)
     syncTimeout = setTimeout(() => {
       if (pendingOperations.value.size === 0) {
-        syncCart(sessionId)
+        syncCart()
       }
     }, 2000) // Sync every 2 seconds instead of after each operation
   }
@@ -130,14 +132,28 @@ export const useCartStore = defineStore('cart', () => {
   })
 
   // Initialize cart from server on store creation
-  const initializeCart = async (sessionId?: string) => {
-    await syncCart(sessionId)
+  const initializeCartSession = async () => {
+    if (!cartId.value) {
+      try {
+        const response = await serverApi.createCartSession()
+        const newCartId = response.session_id
+        setCartId(newCartId)
+        cartId.value = newCartId
+        console.log('✨ Created new cart session:', newCartId)
+      } catch (error) {
+        console.error('Failed to create cart session:', error)
+        return // Stop initialization if session creation fails
+      }
+    } else {
+      console.log('🔄 Reusing existing cart session:', cartId.value)
+    }
+    await syncCart()
   }
 
   // Actions
-  const syncCart = async (sessionId?: string | null) => {
+  const syncCart = async () => {
     // Skip sync if no session ID available
-    if (!sessionId) {
+    if (!cartId.value) {
       console.log('🚫 Skipping cart sync - no session ID available')
       return
     }
@@ -153,28 +169,30 @@ export const useCartStore = defineStore('cart', () => {
         action_type: 'tool',
         tool_name: 'get_cart_state',
         params: {},
-        session_id: sessionId
+        session_id: cartId.value
       })
       const snapshot = response?.result?.data?.cart
       if (snapshot && Array.isArray(snapshot.items)) {
         // Replace items from server snapshot only if no pending operations
         if (pendingOperations.value.size === 0) {
-          const mapped: CartItem[] = snapshot.items.map((i: any) => {
-            const meta = PRODUCT_META[i.product_id] || { icon: '📦', color: '#3b82f6' }
-            console.log(`Cart item mapping: ${i.product_id} -> image: ${i.image_url}, fallback icon: ${meta.icon}`)
-            return {
-              id: `cart-${i.product_id}-${i.variant_id}`,
-              productId: i.product_id,
-              variantId: i.variant_id,
-              name: i.name,
-              variant: i.variant,
-              price: i.price,
-              quantity: i.quantity,
-              imageUrl: i.image_url || '',
-              icon: meta.icon,
-              color: meta.color
-            }
-          })
+          const mapped: CartItem[] = snapshot.items
+            .filter((i: any) => i && i.product_id && i.variant_id && i.name && i.price != null)
+            .map((i: any) => {
+              const meta = PRODUCT_META[i.product_id] || { icon: '📦', color: '#3b82f6' }
+              console.log(`Cart item mapping: ${i.product_id} -> image: ${i.image_url}, fallback icon: ${meta.icon}`)
+              return {
+                id: `cart-${i.product_id}-${i.variant_id}`,
+                productId: i.product_id,
+                variantId: i.variant_id,
+                name: i.name,
+                variant: i.variant || '',
+                price: parseFloat(i.price) || 0,
+                quantity: parseInt(i.quantity) || 1,
+                imageUrl: i.image_url || '',
+                icon: meta.icon,
+                color: meta.color
+              }
+            })
           items.value = mapped
         }
       }
@@ -182,7 +200,7 @@ export const useCartStore = defineStore('cart', () => {
       console.error('Failed to sync cart from server', e)
     }
   }
-  const addItem = async (item: Omit<CartItem, 'id'>, sessionId?: string) => {
+  const addItem = async (item: Omit<CartItem, 'id'>) => {
     const operationId = `add-${item.productId}-${item.variantId}-${Date.now()}`
     
     // Backup current state
@@ -217,7 +235,7 @@ export const useCartStore = defineStore('cart', () => {
           variant_id: item.variantId,
           quantity: item.quantity
         },
-        session_id: sessionId
+        session_id: cartId.value
       }).catch(e => {
         console.warn('Background server sync failed, but UI remains responsive:', e)
         // Don't rollback for demo - keep optimistic updates
@@ -234,11 +252,11 @@ export const useCartStore = defineStore('cart', () => {
     } finally {
       pendingOperations.value.delete(operationId)
       // Use debounced sync for demo
-      debouncedSync(sessionId)
+      debouncedSync()
     }
   }
 
-  const removeItem = async (itemId: string, sessionId?: string) => {
+  const removeItem = async (itemId: string) => {
     const item = items.value.find(i => i.id === itemId)
     if (!item) return
     
@@ -257,7 +275,7 @@ export const useCartStore = defineStore('cart', () => {
         action_type: 'tool',
         tool_name: 'remove_from_cart',
         params: { product_id: item.productId, variant_id: item.variantId },
-        session_id: sessionId
+        session_id: cartId.value
       }).catch(e => {
         console.warn('Background server sync failed, but UI remains responsive:', e)
       })
@@ -268,11 +286,11 @@ export const useCartStore = defineStore('cart', () => {
     } finally {
       pendingOperations.value.delete(operationId)
       // Use debounced sync for demo
-      debouncedSync(sessionId)
+      debouncedSync()
     }
   }
 
-  const updateQuantity = async (itemId: string, quantity: number, sessionId?: string) => {
+  const updateQuantity = async (itemId: string, quantity: number) => {
     const item = items.value.find(i => i.id === itemId)
     if (!item) return
     
@@ -298,7 +316,7 @@ export const useCartStore = defineStore('cart', () => {
         action_type: 'tool',
         tool_name: 'set_cart_quantity',
         params: { product_id: item.productId, variant_id: item.variantId, quantity },
-        session_id: sessionId
+        session_id: cartId.value
       }).catch(e => {
         console.warn('Background server sync failed, but UI remains responsive:', e)
       })
@@ -309,11 +327,11 @@ export const useCartStore = defineStore('cart', () => {
     } finally {
       pendingOperations.value.delete(operationId)
       // Use debounced sync for demo
-      debouncedSync(sessionId)
+      debouncedSync()
     }
   }
 
-  const clearCart = async (sessionId?: string) => {
+  const clearCart = async () => {
     const operationId = `clear-${Date.now()}`
     
     // Backup current state
@@ -330,7 +348,7 @@ export const useCartStore = defineStore('cart', () => {
         action_type: 'tool',
         tool_name: 'clear_cart',
         params: {},
-        session_id: sessionId
+        session_id: cartId.value
       }).catch(e => {
         console.warn('Background server sync failed, but UI remains responsive:', e)
       })
@@ -341,7 +359,7 @@ export const useCartStore = defineStore('cart', () => {
     } finally {
       pendingOperations.value.delete(operationId)
       // Use debounced sync for demo
-      debouncedSync(sessionId)
+      debouncedSync()
     }
   }
 
@@ -377,8 +395,8 @@ export const useCartStore = defineStore('cart', () => {
     imageUrl: string
     icon?: string
     color?: string
-  }, sessionId?: string) => {
-    addItem(productData, sessionId)
+  }) => {
+    addItem(productData)
     // Show a brief success animation
     setTimeout(() => {
       openCart()
@@ -566,6 +584,7 @@ export const useCartStore = defineStore('cart', () => {
     isOpen,
     isAutoOpening,
     pendingOperations,
+    cartId,
     
     // Quote state
     currentQuote,
@@ -586,7 +605,7 @@ export const useCartStore = defineStore('cart', () => {
     isPriceEstimated,
     
     // Actions
-    initializeCart,
+    initializeCartSession,
     syncCart,
     addItem,
     removeItem,

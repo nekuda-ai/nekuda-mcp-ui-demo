@@ -123,8 +123,46 @@ export const useChatStore = defineStore('chat', () => {
     }
     
     // For cart operations, provide better UX by allowing queue processing
-    if (isCartAction) {
-      console.log('🛒 Cart action accepted - will be queued for sequential processing')
+    if (action.payload.toolName === 'add_to_cart' && action.payload.params) {
+      console.log('🛒 Cart action accepted - delegating to cart store')
+      // Mark action as processing and record timestamp
+      processingActions.add(actionKey)
+      recentActions.set(actionKey, now)
+      try {
+        // Let backend handle the complete add-to-cart operation, then sync
+        const response = await chatApi.mcpAction({
+            action_type: action.type,
+            tool_name: action.payload.toolName,
+            params: action.payload.params,
+            session_id: cartStore.cartId || undefined
+        })
+        
+        // Sync cart state from server after successful add
+        await cartStore.syncCart()
+        cartStore.openCartWithAnimation()
+        if (response.result && response.result.content) {
+          let uiResource = null
+          const content = response.result.content[0]
+          if (content && content.type === 'resource') {
+            uiResource = content
+          }
+          if (uiResource && action.messageId) {
+            const idx = messages.value.findIndex(m => m.id === action.messageId)
+            if (idx !== -1) {
+              messages.value[idx] = {
+                ...messages.value[idx],
+                content: getContextualMessage(action.payload.toolName),
+                uiResource
+              }
+            }
+          }
+        }
+        return { status: 'success' }
+      } catch(e) {
+        return { status: 'error', message: 'Failed to add item to cart' }
+      } finally {
+        processingActions.delete(actionKey)
+      }
     }
     
     // Mark action as processing and record timestamp
@@ -139,8 +177,14 @@ export const useChatStore = defineStore('chat', () => {
             action_type: action.type,
             tool_name: action.payload.toolName,
             params: action.payload.params,
-            session_id: sessionId.value || undefined
+            session_id: cartStore.cartId || undefined
           })
+
+          // After the backend action is successful, sync the cart to get the latest state
+          if (action.payload.toolName === 'add_to_cart') {
+            await cartStore.syncCart()
+            cartStore.openCartWithAnimation()
+          }
 
           if (response.result && response.result.content) {
             // Transform to proper MCP-UI resource format
@@ -266,7 +310,8 @@ export const useChatStore = defineStore('chat', () => {
     
     // Ensure cart is synced from server on chat initialization
     if (sessionId.value) {
-      await cartStore.syncCart(sessionId.value)
+      // This is now handled by initializeCartSession in App.vue
+      // await cartStore.syncCart()
     }
   }
 
