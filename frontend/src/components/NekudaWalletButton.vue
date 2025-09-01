@@ -1,8 +1,10 @@
 <template>
-  <button 
-    @click="toggleWallet"
-    class="relative group bg-[#1e1e20] hover:bg-[#2a2a2d] text-white px-5 py-2.5 rounded-2xl transition-all duration-300 flex items-center space-x-2.5 border border-[#2a2a2d] hover:border-[#00D2FF]/30 hover:shadow-[0_0_20px_rgba(0,210,255,0.15)]"
-  >
+  <div class="relative">
+    <button 
+      ref="walletButton"
+      @click="toggleWallet"
+      class="relative group bg-[#1e1e20] hover:bg-[#2a2a2d] text-white px-5 py-2.5 rounded-2xl transition-all duration-300 flex items-center space-x-2.5 border border-[#2a2a2d] hover:border-[#00D2FF]/30 hover:shadow-[0_0_20px_rgba(0,210,255,0.15)]"
+    >
     <!-- nekuda Wallet Icon -->
     <svg class="w-4 h-4 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -18,50 +20,35 @@
     </div>
   </button>
 
-  <!-- Wallet Modal -->
+  </div>
+
+  <!-- Wallet Dropdown -->
   <Teleport to="body">
     <div 
       v-if="isWalletOpen"
-      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center"
+      class="fixed inset-0 z-[99998]"
       @click="closeWallet"
+    ></div>
+    <div 
+      v-if="isWalletOpen"
+      ref="walletDropdown"
+      class="fixed bg-[#111113] border border-[#1e1e20] rounded-2xl p-6 w-[517px] shadow-2xl backdrop-blur-xl z-[99999]"
+      :style="dropdownStyle"
+      @click.stop
     >
-      <div 
-        @click.stop
-        class="bg-[#111113] border border-[#1e1e20] rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl"
-      >
-        <!-- Header -->
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-gradient-to-r from-[#00D2FF] to-[#3A7BD5] rounded-2xl flex items-center justify-center">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-            </div>
-            <h2 class="text-xl font-semibold text-white">nekuda wallet</h2>
-          </div>
-          <button 
-            @click="closeWallet"
-            class="text-white/60 hover:text-white transition-colors p-1 hover:rotate-90 transition-transform duration-300"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
 
-        <!-- Wallet Content -->
-        <div ref="walletContainer" class="nekuda-wallet-content min-h-[300px]">
-          <div v-if="loading" class="flex items-center justify-center py-8">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            <span class="ml-3 text-white/60">Loading wallet...</span>
-          </div>
-          
-          <div v-else-if="error" class="text-center py-8">
-            <p class="text-red-400 mb-4">{{ error }}</p>
-            <button @click="initializeWallet" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
-              Retry
-            </button>
-          </div>
+      <!-- Wallet Content -->
+      <div ref="walletContainer" class="nekuda-wallet-content min-h-[300px]">
+        <div v-if="loading" class="flex items-center justify-center py-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <span class="ml-3 text-white/60">Loading wallet...</span>
+        </div>
+        
+        <div v-else-if="error" class="text-center py-8">
+          <p class="text-red-400 mb-4">{{ error }}</p>
+          <button @click="initializeWallet" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+            Retry
+          </button>
         </div>
       </div>
     </div>
@@ -80,6 +67,9 @@ const hasStoredCards = ref(false)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const walletContainer = ref<HTMLDivElement>()
+const walletButton = ref<HTMLButtonElement>()
+const walletDropdown = ref<HTMLDivElement>()
+const dropdownStyle = ref({})
 
 let reactRoot: any = null
 
@@ -180,7 +170,7 @@ const NekudaWalletComponent = () => {
         marginBottom: '12px',
         transition: 'all 0.3s ease',
         ':hover': {
-          borderColor: '#00D2FF',
+          borderColor: 'rgba(0, 210, 255, 0.3)',
           boxShadow: '0 0 20px rgba(0, 210, 255, 0.15)'
         }
       },
@@ -226,16 +216,16 @@ const NekudaWalletComponent = () => {
           border: '1px solid #2a2a2d',
           color: '#ffffff',
           padding: '12px',
-          borderRadius: '8px',
+          borderRadius: '6px',
           fontSize: '14px',
           '::placeholder': {
             color: 'rgba(255, 255, 255, 0.4)'
           }
         },
         focus: {
-          borderColor: '#00D2FF',
+          borderColor: 'rgba(0, 210, 255, 0.3)',
           outline: 'none',
-          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+          boxShadow: '0 0 20px rgba(0, 210, 255, 0.15)'
         },
         error: {
           borderColor: '#ff4444',
@@ -248,16 +238,16 @@ const NekudaWalletComponent = () => {
           border: '1px solid #2a2a2d',
           color: '#ffffff',
           padding: '12px',
-          borderRadius: '8px',
+          borderRadius: '6px',
           fontSize: '14px',
           '::placeholder': {
             color: 'rgba(255, 255, 255, 0.4)'
           }
         },
         focus: {
-          borderColor: '#00D2FF',
+          borderColor: 'rgba(0, 210, 255, 0.3)',
           outline: 'none',
-          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+          boxShadow: '0 0 20px rgba(0, 210, 255, 0.15)'
         },
         error: {
           borderColor: '#ff4444'
@@ -269,16 +259,16 @@ const NekudaWalletComponent = () => {
           border: '1px solid #2a2a2d',
           color: '#ffffff',
           padding: '12px',
-          borderRadius: '8px',
+          borderRadius: '6px',
           fontSize: '14px',
           '::placeholder': {
             color: 'rgba(255, 255, 255, 0.4)'
           }
         },
         focus: {
-          borderColor: '#00D2FF',
+          borderColor: 'rgba(0, 210, 255, 0.3)',
           outline: 'none',
-          boxShadow: '0 0 0 2px rgba(0, 210, 255, 0.2)'
+          boxShadow: '0 0 20px rgba(0, 210, 255, 0.15)'
         },
         error: {
           borderColor: '#ff4444'
@@ -290,7 +280,7 @@ const NekudaWalletComponent = () => {
           border: '1px solid #2a2a2d',
           color: '#ffffff',
           padding: '12px',
-          borderRadius: '8px',
+          borderRadius: '6px',
           fontSize: '14px',
           '::placeholder': {
             color: 'rgba(255, 255, 255, 0.4)'
@@ -308,7 +298,7 @@ const NekudaWalletComponent = () => {
           border: '1px solid #2a2a2d',
           color: '#ffffff',
           padding: '12px',
-          borderRadius: '8px',
+          borderRadius: '6px',
           fontSize: '14px',
           '::placeholder': {
             color: 'rgba(255, 255, 255, 0.4)'
@@ -326,7 +316,7 @@ const NekudaWalletComponent = () => {
           border: '1px solid #2a2a2d',
           color: '#ffffff',
           padding: '12px',
-          borderRadius: '8px',
+          borderRadius: '6px',
           fontSize: '14px',
           '::placeholder': {
             color: 'rgba(255, 255, 255, 0.4)'
@@ -344,7 +334,7 @@ const NekudaWalletComponent = () => {
           border: '1px solid #2a2a2d',
           color: '#ffffff',
           padding: '12px',
-          borderRadius: '8px',
+          borderRadius: '6px',
           fontSize: '14px',
           '::placeholder': {
             color: 'rgba(255, 255, 255, 0.4)'
@@ -362,7 +352,7 @@ const NekudaWalletComponent = () => {
           border: '1px solid #2a2a2d',
           color: '#ffffff',
           padding: '12px',
-          borderRadius: '8px',
+          borderRadius: '6px',
           fontSize: '14px',
           '::placeholder': {
             color: 'rgba(255, 255, 255, 0.4)'
@@ -380,7 +370,7 @@ const NekudaWalletComponent = () => {
           border: '1px solid #2a2a2d',
           color: '#ffffff',
           padding: '12px',
-          borderRadius: '8px',
+          borderRadius: '6px',
           fontSize: '14px',
           '::placeholder': {
             color: 'rgba(255, 255, 255, 0.4)'
@@ -398,7 +388,7 @@ const NekudaWalletComponent = () => {
           border: '1px solid #2a2a2d',
           color: '#ffffff',
           padding: '12px',
-          borderRadius: '8px',
+          borderRadius: '6px',
           fontSize: '14px',
           '::placeholder': {
             color: 'rgba(255, 255, 255, 0.4)'
@@ -451,18 +441,55 @@ const NekudaWalletComponent = () => {
   )
 }
 
+const updateDropdownPosition = () => {
+  if (!walletButton.value) return
+  
+  const buttonRect = walletButton.value.getBoundingClientRect()
+  const dropdownWidth = 517 // Original 384px + 20% (76px) + 1.5cm (57px)
+  
+  dropdownStyle.value = {
+    top: `${buttonRect.bottom + 8}px`, // 8px gap (mt-2)
+    left: `${buttonRect.right - dropdownWidth}px`, // align right edge with button
+  }
+}
+
 const toggleWallet = async () => {
   isWalletOpen.value = !isWalletOpen.value
   
   if (isWalletOpen.value) {
     await nextTick()
+    updateDropdownPosition()
     await initializeWallet()
+    addClickOutsideListener()
+  } else {
+    removeClickOutsideListener()
   }
 }
 
 const closeWallet = () => {
   isWalletOpen.value = false
+  removeClickOutsideListener()
   cleanup()
+}
+
+// Close wallet when clicking outside
+const handleClickOutside = (event: MouseEvent) => {
+  if (isWalletOpen.value && 
+      walletButton.value && 
+      !walletButton.value.contains(event.target as Node) &&
+      walletContainer.value &&
+      !walletContainer.value.contains(event.target as Node)) {
+    closeWallet()
+  }
+}
+
+// Add click outside listener when wallet opens
+const addClickOutsideListener = () => {
+  document.addEventListener('click', handleClickOutside)
+}
+
+const removeClickOutsideListener = () => {
+  document.removeEventListener('click', handleClickOutside)
 }
 
 const initializeWallet = async () => {
@@ -495,6 +522,7 @@ const cleanup = () => {
 
 // Cleanup on unmount
 onUnmounted(() => {
+  removeClickOutsideListener()
   cleanup()
 })
 </script>
@@ -504,4 +532,5 @@ onUnmounted(() => {
 .nekuda-wallet-content {
   min-height: 300px;
 }
+
 </style>
