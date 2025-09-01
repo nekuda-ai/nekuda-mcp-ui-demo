@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { CartItem } from '@/types'
-import { chatApi, serverApi } from '@/utils/api'
+import { chatApi } from '@/utils/api'
 import { getCartId, setCartId } from '@/utils/cartId'
 import { cartOperationsQueue } from '@/utils/asyncQueue'
 import axios from 'axios'
@@ -134,15 +134,34 @@ export const useCartStore = defineStore('cart', () => {
   // Initialize cart from server on store creation
   const initializeCartSession = async () => {
     if (!cartId.value) {
-      try {
-        const response = await serverApi.createCartSession()
-        const newCartId = response.session_id
-        setCartId(newCartId)
-        cartId.value = newCartId
-        console.log('✨ Created new cart session:', newCartId)
-      } catch (error) {
-        console.error('Failed to create cart session:', error)
-        return // Stop initialization if session creation fails
+      let retryCount = 0
+      const maxRetries = 3
+      
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`🔄 Creating cart session (attempt ${retryCount + 1}/${maxRetries})...`)
+          const response = await chatApi.createCartSession()
+          const newCartId = response.session_id
+          setCartId(newCartId)
+          cartId.value = newCartId
+          console.log('✨ Created new cart session:', newCartId)
+          return // Success - exit retry loop
+        } catch (error) {
+          retryCount++
+          console.error(`Failed to create cart session (attempt ${retryCount}/${maxRetries}):`, error)
+          
+          if (retryCount < maxRetries) {
+            // Wait before retrying (exponential backoff)
+            const delay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000)
+            console.log(`⏳ Retrying in ${delay}ms...`)
+            await new Promise(resolve => setTimeout(resolve, delay))
+          } else {
+            console.error('❌ Failed to create cart session after all retries')
+            // Set a temporary fallback ID for graceful degradation
+            cartId.value = `fallback-${Date.now()}`
+            console.warn('⚠️ Using fallback cart ID for offline mode:', cartId.value)
+          }
+        }
       }
     } else {
       console.log('🔄 Reusing existing cart session:', cartId.value)
@@ -155,6 +174,12 @@ export const useCartStore = defineStore('cart', () => {
     // Skip sync if no session ID available
     if (!cartId.value) {
       console.log('🚫 Skipping cart sync - no session ID available')
+      return
+    }
+    
+    // Skip sync if using fallback ID (offline mode)
+    if (cartId.value.startsWith('fallback-')) {
+      console.log('🚫 Skipping cart sync - using fallback cart ID (offline mode)')
       return
     }
     

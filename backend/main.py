@@ -524,6 +524,31 @@ async def get_mcp_tools() -> List[Dict[str, Any]]:
             return []
 
 
+async def call_mcp_server_direct(method: str, endpoint: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
+    """Call MCP server REST endpoint directly (not via MCP protocol)"""
+    url = f"{settings.mcp_server_full_url}{endpoint}"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            if method.upper() == "POST":
+                response = await client.post(url, json=data or {}, timeout=10.0)
+            elif method.upper() == "GET":
+                response = await client.get(url, timeout=10.0)
+            else:
+                raise HTTPException(status_code=400, detail=f"Unsupported HTTP method: {method}")
+                
+            logger.debug(f"MCP server direct call: {method} {url} -> {response.status_code}")
+            response.raise_for_status()
+            return response.json()
+            
+        except httpx.RequestError as e:
+            logger.error(f"MCP server direct call failed: {e}")
+            raise HTTPException(status_code=502, detail=f"Failed to communicate with MCP server: {str(e)}")
+        except httpx.HTTPStatusError as e:
+            logger.error(f"MCP server returned error: {e.response.status_code}")
+            raise HTTPException(status_code=e.response.status_code, detail=f"MCP server error: {e.response.text}")
+
+
 async def call_mcp_tool(tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """Call an MCP tool on the mock server"""
     mcp_request = {
@@ -879,6 +904,23 @@ async def get_session_info():
         "total_messages": total_messages,
         "session_timeout_hours": SESSION_TIMEOUT_HOURS
     }
+
+
+@app.post("/sessions")
+async def create_cart_session():
+    """Create a new cart session by proxying to MCP server"""
+    try:
+        # Call the MCP server's /sessions endpoint
+        response = await call_mcp_server_direct("POST", "/sessions", {})
+        if response and "session_id" in response:
+            logger.info(f"Created new cart session: {response['session_id']}")
+            return response
+        else:
+            logger.error(f"Invalid response from MCP server: {response}")
+            raise HTTPException(status_code=500, detail="Failed to create cart session")
+    except Exception as e:
+        logger.error(f"Failed to create cart session: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to create cart session")
 
 
 @app.post("/sessions/cleanup")

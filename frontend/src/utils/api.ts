@@ -78,13 +78,7 @@ async function fetchAPI<T>(baseUrl: string, endpoint: string, options: RequestIn
   }
 }
 
-export const serverApi = {
-  async createCartSession(): Promise<{ session_id: string }> {
-    return fetchAPI<{ session_id: string }>(MCP_SERVER_URL, '/sessions', {
-      method: 'POST',
-    });
-  },
-}
+// Note: Removed serverApi - all API calls should go through chatApi (backend)
 
 export const chatApi = {
   async sendMessage(request: ChatRequest): Promise<ChatResponse> {
@@ -99,6 +93,12 @@ export const chatApi = {
       method: 'POST',
       body: JSON.stringify(request),
     })
+  },
+
+  async createCartSession(): Promise<{ session_id: string }> {
+    return fetchAPI<{ session_id: string }>(API_BASE_URL, '/sessions', {
+      method: 'POST',
+    });
   },
 
   async getHealth(): Promise<{ status: string }> {
