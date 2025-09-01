@@ -128,9 +128,8 @@ ui_component = extract_ui_resource(mcp_response)
 
 This demo shows a unified payment architecture. Today, commerce MCPs provide catalog, cart, and checkout (e.g. PayPal, Shopify), but each is tied to a different vendor. When embedded, agents face fragmented checkout flows: multiple UIs and inconsistent experiences, which can create user fatigue. More importantly, these flows all require a human in the loop, which makes true agentic payments impossible. Our solution centers on an agent-level wallet - one wallet that enables one-click checkout across merchants, plus enabling autonomous payments in the future.
 
-### Unified Solution
+### Agent-Level Wallet
 
-**Agent-Level Wallet**
 - Single wallet works across all merchants
 - Network tokens eliminate PAN/CVV reuse risk
 - Dynamic CVV (DTVV) generated per transaction
@@ -140,11 +139,11 @@ This demo shows a unified payment architecture. Today, commerce MCPs provide cat
 
 When a user clicks "Place Order," the system executes a single atomic payment operation:
 
-1. **Payment Authorization** - Creates a mandate capturing the user's explicit approval for this specific purchase and amount, stored securely with nekuda service
+1. **Payment Authorization** - Creates a mandate capturing the user's explicit approval for this specific purchase and amount, stored securely with nekuda service.
 
-2. **Credential Generation** - Retrieves a short-lived payment token, then exchanges it for payment credentials (network token or PAN)
+2. **Credential Generation** - Retrieves a short-lived payment token, then exchanges it for payment credentials (network token or PAN).
 
-3. **Merchant Settlement** - Returns the payment credentials along with the cart session ID to the backend for merchant processing
+3. **Merchant Settlement** - Returns the payment credentials along with the cart session ID to the backend for merchant processing.
 
 ```typescript
 // Atomic payment operation triggered by "Place Order" click
