@@ -106,7 +106,7 @@ class NekudaPaymentData:
 class CheckoutRequest(BaseModel):
     """Request model for checkout with Nekuda payment"""
     user_id: str
-    cart_total: float
+    cart_total: float  # NOTE: This should be the final total (includes tax/shipping), not simple cart subtotal
     cart_items: list
     product: str = "E-commerce Purchase"
     currency: str = "USD"
@@ -116,7 +116,7 @@ class NekudaCheckoutRequest(BaseModel):
     """Enhanced request model for new checkout endpoint"""
     user_id: str
     cart_items: List[Dict[str, Any]]
-    cart_total: float
+    cart_total: float  # NOTE: This should be the final total (includes tax/shipping), not simple cart subtotal
     product_summary: str = "Cart Purchase"
     currency: str = "USD"
     shipping_address: Optional[Dict[str, str]] = None
@@ -219,6 +219,7 @@ class NekudaService:
             )
             
             logger.info(f"Creating checkout mandate for user {user_id}: ${cart_data['total']} {cart_data['currency']}")
+            logger.debug(f"Mandate amount details - Final total: ${cart_data['total']} (includes tax/shipping if applicable)")
             
             mandate_response = user_context.create_mandate(mandate_data)
             mandate_id = mandate_response.mandate_id

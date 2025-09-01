@@ -1136,7 +1136,7 @@ async def get_quote(quote_session_id: str):
 class AtomicCheckoutRequest(BaseModel):
     """Request model for atomic checkout with mandate creation"""
     user_id: str
-    cart_total: float
+    cart_total: float  # NOTE: This is the final quote total (includes tax/shipping), not simple cart subtotal
     cart_items: List[Dict[str, Any]]
     product_summary: str = "E-commerce Cart Purchase"
     currency: str = "USD"
@@ -1154,8 +1154,15 @@ async def atomic_nekuda_checkout(checkout_request: AtomicCheckoutRequest):
         user_id = checkout_request.user_id
         
         logger.debug(f"Starting atomic checkout for user {user_id}")
-        logger.debug(f"Cart total: ${checkout_request.cart_total}, Items: {len(checkout_request.cart_items)}")
+        logger.debug(f"Final total (from quote): ${checkout_request.cart_total}, Items: {len(checkout_request.cart_items)}")
         logger.debug(f"Checkout context: {checkout_request.checkout_context}")
+        
+        # For debugging: calculate simple cart subtotal vs quote total
+        simple_cart_subtotal = sum(
+            item.get('price', 0) * item.get('quantity', 1) 
+            for item in checkout_request.cart_items
+        )
+        logger.debug(f"Simple cart subtotal: ${simple_cart_subtotal} vs Final total: ${checkout_request.cart_total}")
         
         # Validate quote if provided
         if checkout_request.quote_session_id and checkout_request.quote_version:
@@ -1172,6 +1179,16 @@ async def atomic_nekuda_checkout(checkout_request: AtomicCheckoutRequest):
                     status_code=400,
                     detail=f"Quote validation failed: {validation_message}"
                 )
+            
+            # Get the actual quote total to ensure consistency
+            quote_data = await mcp_quote_client.get_quote(checkout_request.quote_session_id)
+            if quote_data:
+                quote_total = float(quote_data.get('total', '0'))
+                if abs(quote_total - checkout_request.cart_total) > 0.01:  # Allow 1 cent difference for rounding
+                    logger.warning(f"Quote total mismatch: Quote shows ${quote_total}, checkout uses ${checkout_request.cart_total}")
+                    # Update to use the authoritative quote total
+                    checkout_request.cart_total = quote_total
+                    logger.info(f"Updated mandate amount to use quote total: ${quote_total}")
             
             logger.debug("Quote validation successful")
         
