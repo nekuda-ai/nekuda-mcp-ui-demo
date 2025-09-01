@@ -15,7 +15,7 @@
             <img src="/dot_black.png" alt="nekuda logo" class="w-6 h-6 sm:w-7 sm:h-7 rounded-2xl shadow-lg" />
           </a>
           <h1 class="text-sm sm:text-lg font-medium text-white tracking-tight truncate">
-            <span class="hidden sm:inline">Headless Store + nekuda Wallet Demo</span>
+            <span class="hidden sm:inline">Headless Store + nekuda wallet Demo</span>
             <span class="sm:hidden">nekuda wallet</span>
           </h1>
         </div>
@@ -154,12 +154,12 @@
           </button>
         </div>
         <div class="text-gray-300 space-y-3">
-          <p> This is a demo showcasing the integration of a headless store using <a href="https://github.com/idosal/mcp-ui" target="_blank" rel="noopener noreferrer" class="text-[#00D2FF] underline underline-offset-2 hover:text-[#00B8E6] transition-colors">MCP-UI ↗</a> with nekuda Wallet.</p>
+          <p> This is a demo showcasing the integration of a headless store using <a href="https://github.com/idosal/mcp-ui" target="_blank" rel="noopener noreferrer" class="text-[#00D2FF] underline underline-offset-2 hover:text-[#00B8E6] transition-colors">MCP-UI ↗</a> with nekuda wallet.</p>
           <p class="mt-1">Features:</p>
           <ul class="list-disc list-inside space-y-1 ml-4">
             <li>Headless store with MCP-UI components</li>
             <li>API-first checkout with agentic network tokens</li>
-            <li>One-click checkout with nekuda Wallet</li>
+            <li>One-click checkout with nekuda wallet</li>
           </ul>
           <div class="pt-2">
             <a 

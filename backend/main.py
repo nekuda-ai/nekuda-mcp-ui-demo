@@ -75,7 +75,7 @@ class MCPQuoteClient:
             response.raise_for_status()
             
             result = response.json()
-            print(f"DEBUG: Raw MCP response: {result}")
+            logger.debug(f"Raw MCP response: {result}")
             
             if result.get("error"):
                 raise HTTPException(
@@ -84,17 +84,17 @@ class MCPQuoteClient:
                 )
             
             extracted_result = result.get("result", {})
-            print(f"DEBUG: Returning from _call_mcp_tool: {extracted_result}")
+            logger.debug(f"Returning from _call_mcp_tool: {extracted_result}")
             return extracted_result
             
         except HTTPException as e:
-            print(f"DEBUG: HTTPException in _call_mcp_tool: {e}")
+            logger.debug(f"HTTPException in _call_mcp_tool: {e}")
             raise
         except httpx.HTTPError as e:
-            print(f"DEBUG: httpx.HTTPError in _call_mcp_tool: {e}")
+            logger.debug(f"httpx.HTTPError in _call_mcp_tool: {e}")
             raise HTTPException(status_code=500, detail=f"MCP communication error: {str(e)}")
         except Exception as e:
-            print(f"DEBUG: Unexpected exception in _call_mcp_tool: {e}")
+            logger.debug(f"Unexpected exception in _call_mcp_tool: {e}")
             raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
     
     async def create_or_update_quote(
@@ -122,19 +122,19 @@ class MCPQuoteClient:
                 arguments["selected_shipping_id"] = selected_shipping_id
             
             result = await self._call_mcp_tool("create_or_update_quote", arguments)
-            print(f"DEBUG: _call_mcp_tool returned: {result}")
-            print(f"DEBUG: Type of result: {type(result)}")
+            logger.debug(f"_call_mcp_tool returned: {result}")
+            logger.debug(f"Type of result: {type(result)}")
             
             if result is None:
-                print("DEBUG: result is None!")
+                logger.debug("result is None!")
                 return None
             
             quote_data = result.get("quote")
-            print(f"DEBUG: Extracted quote_data: {quote_data}")
+            logger.debug(f"Extracted quote_data: {quote_data}")
             return quote_data
         except Exception as e:
-            print(f"DEBUG: MCP create_or_update_quote error: {e}")
-            print(f"DEBUG: Result was: {result if 'result' in locals() else 'No result'}")
+            logger.debug(f"MCP create_or_update_quote error: {e}")
+            logger.debug(f"Result was: {result if 'result' in locals() else 'No result'}")
             return None
     
     async def get_quote(self, quote_session_id: str) -> Optional[Dict[str, Any]]:
@@ -323,8 +323,15 @@ def setup_logging():
     # Configure logging format
     if environment == "production":
         log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        # In production, reduce verbosity of third-party loggers
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger("httpcore").setLevel(logging.WARNING)
+        logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     else:
         log_format = "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
+        # In development, keep httpx logs but reduce to WARNING
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger("httpcore").setLevel(logging.WARNING)
     
     logging.basicConfig(
         level=getattr(logging, log_level, logging.INFO),

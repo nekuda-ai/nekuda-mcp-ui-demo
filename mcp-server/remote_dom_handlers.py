@@ -789,8 +789,22 @@ async def handle_process_checkout_remote_dom(request_id: str | int, session_id: 
     import time
     order_id = f"ORD-{int(time.time())}"
     # Get final total from quote service (includes tax and shipping)
-    quote = merchant_quote_service.get_quote(session_id)
+    # Try to get quote using quoteSessionId from frontend, fallback to session_id
+    quote_session_id = arguments.get("quoteSessionId") 
+    if quote_session_id:
+        quote = merchant_quote_service.get_quote(quote_session_id)
+        logger.info(f"Retrieved quote using quote_session_id: {quote_session_id}")
+    else:
+        quote = merchant_quote_service.get_quote(session_id)
+        logger.info(f"Fallback: Retrieved quote using session_id: {session_id}")
+    
     order_total = quote.total if quote else cart["total"]
+    
+    # Log which total we're using
+    if quote:
+        logger.info(f"Using final total from quote: ${order_total:.2f} (merchandise: ${cart['total']:.2f}, tax: ${quote.tax:.2f}, shipping: ${quote.subtotal - quote.merchandise_total:.2f})")
+    else:
+        logger.info(f"No quote found (tried quote_session_id: {quote_session_id}, session_id: {session_id}), using cart total: ${order_total:.2f}")
     
     # Process the order (in real app, would integrate with payment processor)
     order_summary = []
@@ -2264,8 +2278,22 @@ async def handle_process_checkout_remote_dom(request_id: str | int, session_id: 
     import time
     order_id = f"ORD-{int(time.time())}"
     # Get final total from quote service (includes tax and shipping)
-    quote = merchant_quote_service.get_quote(session_id)
+    # Try to get quote using quoteSessionId from frontend, fallback to session_id
+    quote_session_id = arguments.get("quoteSessionId") 
+    if quote_session_id:
+        quote = merchant_quote_service.get_quote(quote_session_id)
+        logger.info(f"Retrieved quote using quote_session_id: {quote_session_id}")
+    else:
+        quote = merchant_quote_service.get_quote(session_id)
+        logger.info(f"Fallback: Retrieved quote using session_id: {session_id}")
+    
     order_total = quote.total if quote else cart["total"]
+    
+    # Log which total we're using
+    if quote:
+        logger.info(f"Using final total from quote: ${order_total:.2f} (merchandise: ${cart['total']:.2f}, tax: ${quote.tax:.2f}, shipping: ${quote.subtotal - quote.merchandise_total:.2f})")
+    else:
+        logger.info(f"No quote found (tried quote_session_id: {quote_session_id}, session_id: {session_id}), using cart total: ${order_total:.2f}")
     
     # Process the order (in real app, would integrate with payment processor)
     order_summary = []
@@ -2587,14 +2615,22 @@ async def handle_checkout_remote_dom(request_id: str | int, session_id: str, arg
         )
     
     # Get final total from quote service (includes tax and shipping)
-    quote = merchant_quote_service.get_quote(session_id)
+    # Try to get quote using quoteSessionId from frontend, fallback to session_id
+    quote_session_id = arguments.get("quoteSessionId") if arguments else None
+    if quote_session_id:
+        quote = merchant_quote_service.get_quote(quote_session_id)
+        logger.info(f"Retrieved quote using quote_session_id: {quote_session_id}")
+    else:
+        quote = merchant_quote_service.get_quote(session_id)
+        logger.info(f"Fallback: Retrieved quote using session_id: {session_id}")
+    
     final_total = quote.total if quote else cart["total"]
     
     # Log which total we're using
     if quote:
         logger.info(f"Using final total from quote: ${final_total:.2f} (merchandise: ${cart['total']:.2f}, tax: ${quote.tax:.2f}, shipping: ${quote.subtotal - quote.merchandise_total:.2f})")
     else:
-        logger.info(f"No quote found, using cart total: ${final_total:.2f}")
+        logger.info(f"No quote found (tried quote_session_id: {quote_session_id}, session_id: {session_id}), using cart total: ${final_total:.2f}")
         final_total = cart["total"]  # Fallback to cart total
     
     # Extract payment credentials from frontend arguments
@@ -3376,8 +3412,22 @@ async def handle_process_checkout_remote_dom(request_id: str | int, session_id: 
     import time
     order_id = f"ORD-{int(time.time())}"
     # Get final total from quote service (includes tax and shipping)
-    quote = merchant_quote_service.get_quote(session_id)
+    # Try to get quote using quoteSessionId from frontend, fallback to session_id
+    quote_session_id = arguments.get("quoteSessionId") 
+    if quote_session_id:
+        quote = merchant_quote_service.get_quote(quote_session_id)
+        logger.info(f"Retrieved quote using quote_session_id: {quote_session_id}")
+    else:
+        quote = merchant_quote_service.get_quote(session_id)
+        logger.info(f"Fallback: Retrieved quote using session_id: {session_id}")
+    
     order_total = quote.total if quote else cart["total"]
+    
+    # Log which total we're using
+    if quote:
+        logger.info(f"Using final total from quote: ${order_total:.2f} (merchandise: ${cart['total']:.2f}, tax: ${quote.tax:.2f}, shipping: ${quote.subtotal - quote.merchandise_total:.2f})")
+    else:
+        logger.info(f"No quote found (tried quote_session_id: {quote_session_id}, session_id: {session_id}), using cart total: ${order_total:.2f}")
     
     # Process the order (in real app, would integrate with payment processor)
     order_summary = []

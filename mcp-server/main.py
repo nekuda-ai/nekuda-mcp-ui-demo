@@ -417,7 +417,7 @@ async def mcp_endpoint(raw_request: Dict[str, Any]):
             return MCPResponse(
                 id=request.id,
                 result={
-                    "tools": [tool.dict() for tool in tools]
+                    "tools": [tool.model_dump() for tool in tools]
                 }
             )
         

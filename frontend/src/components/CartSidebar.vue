@@ -367,7 +367,9 @@ const proceedToCheckout = async () => {
           cvv: atomicCheckoutData.cvv,
           cardholderName: atomicCheckoutData.cardholderName,
           mandateId: atomicCheckoutData.mandate_id,
-          checkoutContext: atomicCheckoutData.checkout_context
+          checkoutContext: atomicCheckoutData.checkout_context,
+          quoteSessionId: cartStore.currentQuote?.quote_session_id,
+          quoteVersion: cartStore.currentQuote?.version
         }
       }
     })
