@@ -10,13 +10,13 @@
             href="https://nekuda.ai" 
             target="_blank"
             rel="noopener noreferrer"
-            class="flex-shrink-0 transition-transform hover:scale-105"
+            class="flex-shrink-0 transition-transform hover:scale-105 flex items-center"
           >
             <img src="/dot_black.png" alt="nekuda logo" class="w-6 h-6 sm:w-7 sm:h-7 rounded-2xl shadow-lg" />
           </a>
           <h1 class="text-sm sm:text-lg font-medium text-white tracking-tight truncate">
             <span class="hidden sm:inline">Headless Store + nekuda wallet Demo</span>
-            <span class="sm:hidden">nekuda wallet</span>
+            <span class="sm:hidden">Headless store demo</span>
           </h1>
         </div>
         
@@ -96,6 +96,23 @@
           class="md:hidden fixed top-16 right-3 bg-[#111113] border border-[#1e1e20] rounded-2xl p-4 z-50 animate-mobile-menu shadow-2xl backdrop-blur-xl"
         >
           <div class="flex flex-col space-y-3 w-48">
+            <!-- Cart Toggle Button -->
+            <button 
+              @click="cartStore.toggleCart(); showMobileMenu = false"
+              class="relative group bg-[#1e1e20] hover:bg-[#2a2a2d] text-white px-4 py-3 rounded-2xl transition-all duration-300 flex items-center justify-center space-x-2 border border-[#2a2a2d] hover:border-[#00D2FF]/30 min-h-touch"
+            >
+              <svg class="w-5 h-5 transition-transform group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5-6m0 0h15.5M7 13v6a1 1 0 001 1h7a1 1 0 001-1v-6M7 13H5.4" />
+              </svg>
+              <span class="text-sm font-medium">Cart</span>
+              <div 
+                v-if="cartStore.itemCount > 0"
+                class="absolute -top-1 -right-1 bg-gradient-to-r from-[#FF6B6B] to-[#FF5722] text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold transform animate-pulse shadow-lg"
+              >
+                {{ cartStore.itemCount }}
+              </div>
+            </button>
+            
             <!-- About Button -->
             <button 
               @click="showAbout = !showAbout; showMobileMenu = false"

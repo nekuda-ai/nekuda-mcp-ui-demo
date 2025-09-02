@@ -32,7 +32,7 @@
     <div 
       v-if="isWalletOpen"
       ref="walletDropdown"
-      class="fixed bg-[#111113] border border-[#1e1e20] rounded-2xl p-6 w-[517px] shadow-2xl backdrop-blur-xl z-[99999]"
+      class="fixed bg-[#111113] border border-[#1e1e20] rounded-2xl p-6 w-[517px] max-w-[calc(100vw-32px)] shadow-2xl backdrop-blur-xl z-[99999]"
       :style="dropdownStyle"
       @click.stop
     >
@@ -445,11 +445,30 @@ const updateDropdownPosition = () => {
   if (!walletButton.value) return
   
   const buttonRect = walletButton.value.getBoundingClientRect()
-  const dropdownWidth = 517 // Original 384px + 20% (76px) + 1.5cm (57px)
+  const viewportWidth = window.innerWidth
+  const isMobile = viewportWidth < 768 // md breakpoint
+  const maxDropdownWidth = 517 // Original desired width
+  const minMargin = 16 // 16px margin from screen edges
+  
+  // Calculate actual dropdown width based on viewport
+  const actualDropdownWidth = isMobile 
+    ? Math.min(maxDropdownWidth, viewportWidth - (minMargin * 2))
+    : maxDropdownWidth
+  
+  // Calculate left position
+  let leftPosition = buttonRect.right - actualDropdownWidth
+  
+  // Ensure the dropdown doesn't go off-screen
+  if (leftPosition < minMargin) {
+    leftPosition = minMargin
+  } else if (leftPosition + actualDropdownWidth > viewportWidth - minMargin) {
+    leftPosition = viewportWidth - actualDropdownWidth - minMargin
+  }
   
   dropdownStyle.value = {
     top: `${buttonRect.bottom + 8}px`, // 8px gap (mt-2)
-    left: `${buttonRect.right - dropdownWidth}px`, // align right edge with button
+    left: `${leftPosition}px`,
+    width: `${actualDropdownWidth}px`,
   }
 }
 
