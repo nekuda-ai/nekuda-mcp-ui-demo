@@ -303,7 +303,7 @@ export const useChatStore = defineStore('chat', () => {
       const welcomeMessage: ChatMessage = {
         id: 'welcome',
         role: 'assistant',
-        content: '🏀 Welcome to our NBA sport agents! Search for things like "NBA jerseys", "basketball gear", or ask about your favorite players like LeBron, Curry, and Jordan.',
+        content: '🏀 Welcome to our NBA sports agent! Search for things like "NBA jerseys", "basketball gear", or ask about your favorite players like LeBron, Curry, and Jordan.',
         timestamp: new Date()
       }
       addMessage(welcomeMessage)
