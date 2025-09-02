@@ -87,13 +87,13 @@
         <div 
           v-if="showMobileMenu"
           @click="showMobileMenu = false"
-          class="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-fade-in"
+          class="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100000] animate-fade-in"
         ></div>
 
         <!-- Mobile Menu -->
         <div 
           v-if="showMobileMenu"
-          class="md:hidden fixed top-16 right-3 bg-[#111113] border border-[#1e1e20] rounded-2xl p-4 z-50 animate-mobile-menu shadow-2xl backdrop-blur-xl"
+          class="md:hidden fixed top-16 right-3 bg-[#111113] border border-[#1e1e20] rounded-2xl p-4 z-[100001] animate-mobile-menu shadow-2xl backdrop-blur-xl"
         >
           <div class="flex flex-col space-y-3 w-48">
             <!-- Cart Toggle Button -->
