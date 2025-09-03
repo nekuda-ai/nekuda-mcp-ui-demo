@@ -10,23 +10,74 @@
 
   You can interact with a live demo [here](https://nekuda-frontend.onrender.com/). 
 
-  ## Running the Demo
+  ## Quick Start
 
+### Prerequisites
+- Node.js 18+ and npm 8+
+- Python 3.8+ 
+- OpenAI API key
+
+### Setup
+
+1. **Clone and install dependencies**
 ```bash
-# Install dependencies
+git clone <repository-url>
+cd nekuda-mcp-ui-demo
 npm run install:all
-
-# Start all services
-npm run dev
-
-# Access demo
-open http://localhost:5173
 ```
+
+2. **Configure environment variables**
+```bash
+# Copy the environment template
+cp .env.example .env
+
+# Edit .env and add your keys (see Environment Variables section below)
+```
+
+3. **Start the application**
+
+**Option A: Using start.sh (Recommended)**
+```bash
+./start.sh
+```
+
+**Option B: Using npm**
+```bash
+npm run dev
+```
+
+4. **Access the demo**
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8001
+- MCP Server: http://localhost:3003
 
 ### Architecture Services
 - **Frontend**: http://localhost:5173 (Vue + MCP-UI)
 - **Backend API**: http://localhost:8001 (FastAPI + OpenAI)  
 - **MCP Server**: http://localhost:3003 (E-commerce tools)
+
+## Environment Variables
+
+This application requires several environment variables to function properly. Copy `.env.example` to `.env` and configure the following:
+
+### Required Variables
+
+| Variable | Description | Required For | Example |
+|----------|-------------|--------------|---------|
+| `OPENAI_API_KEY` | OpenAI API key for LLM functionality | Backend API | `sk-proj-abcd1234...` |
+| `NEKUDA_API_KEY` | nekuda private API key for payment processing | Backend API | `sk_1eoq8RmA3VN...` |
+| `VITE_NEKUDA_PUBLIC_KEY` | nekuda public key for wallet widget | Frontend | `ak_public_key...` |
+
+### Optional Variables
+
+| Variable | Description | Default | Options |
+|----------|-------------|---------|---------|
+| `ENVIRONMENT` | Application environment | `development` | `development`, `production` |
+
+### Getting nekuda API Keys
+
+   - Contact [founders@nekuda.ai](mailto:founders@nekuda.ai) for access
+
 
 
 ## Components
@@ -160,6 +211,7 @@ return { payment_credentials, cart_session_id }
 ```
 
 This atomic approach eliminates checkout friction and works with any merchant's headless commerce system.
+
 
 ## Contact
 
