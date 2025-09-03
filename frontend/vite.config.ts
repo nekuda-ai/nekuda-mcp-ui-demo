@@ -12,6 +12,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    allowedHosts: ['mcp-ui.nekuda.ai', 'localhost'],
     proxy: {
       '/api': {
         target: 'http://localhost:8001',
@@ -23,6 +24,6 @@ export default defineConfig({
   preview: {
     host: true,
     port: 4173,
-    allowedHosts: ['nekuda-mcp-ui-demo.onrender.com', 'nekuda-frontend.onrender.com', 'localhost']
+    allowedHosts: ['nekuda-mcp-ui-demo.onrender.com', 'nekuda-frontend.onrender.com', 'mcp-ui.nekuda.ai', 'localhost']
   }
 })
