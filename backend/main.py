@@ -172,7 +172,7 @@ class MCPQuoteClient:
 class Settings(BaseSettings):
     openai_api_key: str
     mcp_server_url: str = "http://localhost:3003"
-    cors_origins: str = "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175"
+    cors_origins: str = "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:5175,https://mcp-ui.nekuda.ai"
     
     @property
     def cors_origins_list(self) -> List[str]:
