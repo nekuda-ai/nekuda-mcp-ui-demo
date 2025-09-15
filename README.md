@@ -1,5 +1,7 @@
 # MCP-UI Demo with nekuda Unified Wallet
 
+  <img width="1500" height="500" alt="image" src="https://github.com/user-attachments/assets/50a1e37c-879e-4e8a-a026-08525b4e48b5" />
+  
   Next-gen agentic commerce demo: AI agents + unified payments
 
 ## Key Features
