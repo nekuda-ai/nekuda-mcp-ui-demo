@@ -4,8 +4,8 @@
   "description": "MCP E-commerce Demo - Complete system with Vue frontend, FastAPI backend, and MCP server",
   "scripts": {
     "dev": "concurrently -n \"MCP,Backend,Frontend\" -c \"cyan,yellow,green\" \"npm run dev:mcp\" \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:mcp": "cd mcp-server && export $(cat ../.env | grep -v '^#' | xargs) && PORT=3003 ENVIRONMENT=production ./venv/bin/python3 main.py",
-    "dev:backend": "cd backend && export $(cat ../.env | grep -v '^#' | xargs) && PORT=8001 ./venv/bin/python3 main.py", 
+    "dev:mcp": "cd mcp-server && set -a && . ../.env 2>/dev/null || true && set +a && PORT=3003 ENVIRONMENT=production ./venv/bin/python3 main.py",
+    "dev:backend": "cd backend && set -a && . ../.env 2>/dev/null || true && set +a && PORT=8001 ./venv/bin/python3 main.py", 
     "dev:frontend": "cd frontend && npm run dev",
     "install:all": "npm install && cd frontend && npm install && cd ../backend && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && deactivate && cd ../mcp-server && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && deactivate && cd ..",
     "build": "cd frontend && npm install && npm run build",

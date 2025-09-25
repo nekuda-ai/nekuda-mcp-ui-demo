@@ -117,7 +117,10 @@ echo -e "${YELLOW}Press Ctrl+C to stop all services${NC}"
 echo ""
 
 # Load environment variables
-export $(cat .env | grep -v '^#' | xargs)
+# Safely load .env (ignore comments/blank lines, compatible with set -e)
+set -a
+. ./.env 2>/dev/null || true
+set +a
 
 # Start all services with concurrently
 npm run dev
